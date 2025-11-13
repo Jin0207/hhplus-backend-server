@@ -1,3 +1,9 @@
+## 📊 ERD 다이어그램
+
+![ERD Diagram](./image/erd.png)
+
+---
+
 Table users {
   id integer [primary key, note: '식별자']
   user_id varchar [unique, not null, note: '유저 ID']
