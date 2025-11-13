@@ -4,6 +4,8 @@
 
 ---
 
+```dbml
+-- 사용자
 Table users {
   id integer [primary key, note: '식별자']
   user_id varchar [unique, not null, note: '유저 ID']
@@ -13,6 +15,7 @@ Table users {
   upd_dttm datetime [note: '변경일']
 }
 
+-- 포인트 히스토리
 Table point_Histories {
   id integer [primary key, note: '식별자']
   user_id varchar [not null, ref: > users.id, note: '유저ID FK']
@@ -23,6 +26,7 @@ Table point_Histories {
   upd_dttm datetime [note: '변경일']
 }
 
+-- 쿠폰
 Table coupons{
   id integer [primary key, note: '식별자']
   name varchar [not null, note: '쿠폰명']
@@ -38,6 +42,7 @@ Table coupons{
   upd_dttm datetime [note: '변경일']
 }
 
+-- 사용자 쿠폰
 Table user_coupons{
   user_id integer [not null, ref: > users.id]
   coupon_id integer [not null, ref: > coupons.id] 
@@ -50,6 +55,7 @@ Table user_coupons{
   }
 }
 
+-- 상품
 Table products {
   id integer [primary key, note: '식별자']
   product_name varchar [not null, note: '상품']
@@ -62,6 +68,7 @@ Table products {
   upd_dttm datetime [note: '변경일']
 }
 
+-- 재고
 Table stocks {
   id integer
   product_id integer [not null, ref: > products.id, note: '상품id(FK']
@@ -70,6 +77,7 @@ Table stocks {
   upd_dttm datetime [note: '변경일']
 }
 
+-- 주문
 Table orders{
   id integer [primary key]
   user_id integer [not null, ref: > users.id, note: '복합 FK (user_id)' ]
@@ -82,6 +90,7 @@ Table orders{
   upd_dttm datetime [note: '변경일']
 }
 
+-- 주문내역
 Table order_detail{
   id integer [primary key, note:'식별자']
   order_id integer [not null, ref: > orders.id, note: '주문번호']
@@ -92,6 +101,7 @@ Table order_detail{
   upd_dttm datetime [note: '변경일']
 }
 
+-- 결제
 Table payments {
   id integer [primary key, note: '식별자']
   order_id integer [not null, ref: > orders.id, note: '주문ID FK']
@@ -109,3 +119,5 @@ Table payments {
   crt_dttm datetime [note: '생성일']
   upd_dttm datetime [note: '변경일']
 }
+
+```
