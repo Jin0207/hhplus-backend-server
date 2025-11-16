@@ -6,7 +6,7 @@
 ## 🗂프로젝트 설계 문서
 - 📄 [**API 명세서**](docs/API_SPECIFICATION.md)
 - 📊 [**ERD**](docs/ERD.md)
-- 🧩 [**인프라구성도**](Infrastructure.md)
+- 🧩 [**인프라구성도**](docs/Infrastructure.md)
 
 ---
 
