@@ -31,11 +31,11 @@ public class UserController {
      * POST /api/users/{userId}/points/charge
      */
     @PostMapping("/{userId}/points/charge")
-    public ResponseEntity<UserResponse> chargePoint(
+    public ApiResponse<UserResponse> chargePoint(
             @PathVariable Long userId,
             @Valid @RequestBody PointChargeRequest request) {
         UserResponse response = userFacade.chargePoint(userId, request.amount(), null);
-        return ResponseEntity.ok(response);
+        return ApiResponse.success("포인트 충전 성공", response);
     }
 
     /**
@@ -43,11 +43,11 @@ public class UserController {
      * POST /api/users/{userId}/points/use
      */
     @PostMapping("/{userId}/points/use")
-    public ResponseEntity<UserResponse> usePoint(
+    public ApiResponse<UserResponse> usePoint(
             @PathVariable Long userId,
             @Valid @RequestBody PointChargeRequest request) {
         UserResponse response = userFacade.usePoint(userId, request.amount());
-        return ResponseEntity.ok(response);
+        return ApiResponse.success("포인트 사용 성공", response);
     }
 
     /**
@@ -55,9 +55,9 @@ public class UserController {
      * GET /api/users/{userId}/points
      */
     @GetMapping("/{userId}/points")
-    public ResponseEntity<Integer> getPointBalance(@PathVariable Long userId) {
+    public ApiResponse<Integer> getPointBalance(@PathVariable Long userId) {
         Integer balance = userFacade.getPointBalance(userId);
-        return ResponseEntity.ok(balance);
+        return ApiResponse.success("포인트 잔액 조회 성공", balance);
     }
 
     /**
