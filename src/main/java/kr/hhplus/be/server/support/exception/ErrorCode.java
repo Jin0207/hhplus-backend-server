@@ -12,6 +12,7 @@ public enum ErrorCode {
     RUNTIME_ERROR("E003", "런타임 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
     RESOURCE_ACTION_REASON("E004", "%s는/은 %s할수없습니다.", HttpStatus.BAD_REQUEST),
     LESS_THAN_ZERO("E005", "%s는/은 0보다 작을 수 없습니다.", HttpStatus.BAD_REQUEST),
+    INVALID_VALUE("E006", "유효하지 않은 %s 값입니다.", HttpStatus.BAD_REQUEST),
 
     // 포인트 관련 에러 (E100 ~ E199)
     CHARGE_LESS_THAN_ZERO("E100", "충전/사용 금액은 0보다 작을 수 없습니다.", HttpStatus.BAD_REQUEST),

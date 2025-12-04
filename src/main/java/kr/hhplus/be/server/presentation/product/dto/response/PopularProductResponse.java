@@ -1,6 +1,8 @@
-package kr.hhplus.be.server.domain.product.dto;
+package kr.hhplus.be.server.presentation.product.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import kr.hhplus.be.server.domain.product.entity.Product;
+import kr.hhplus.be.server.domain.product.enums.ProductStatus;
 
 @Schema(description = "인기상품 조회 응답")
 public record PopularProductResponse(
@@ -20,8 +22,20 @@ public record PopularProductResponse(
     String category,
     
     @Schema(description = "판매 상태", example = "ON_SALE")
-    String status,
+    ProductStatus status,
     
     @Schema(description = "누적판매량", example = "150")
     Integer salesQuantity
-) {}
+) {
+    public static PopularProductResponse from(Product product) {
+        return new PopularProductResponse(
+            product.id(),
+            product.productName(),
+            product.price(),
+            product.stock(),
+            product.category().name(),
+            product.status(),
+            product.salesQuantity()
+        );
+    }
+}
