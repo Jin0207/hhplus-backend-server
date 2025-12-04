@@ -23,11 +23,38 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PointHistoryRepository pointHistoryRepository;
+    
     /*
-    * 사용자 조회
+    * 사용자 생성
+    */
+    @Transactional
+    public User createUser(User user){
+        // 중복 계정 확인
+        if (userRepository.existsByAccountId(user.accountId())) {
+            throw new BusinessException(ErrorCode.USER_ALREADY_EXISTS, user.accountId());
+        }
+
+        User savedUser = userRepository.save(user);
+        log.info("사용자 생성 완료: userId={}, accountId={}", savedUser.id(), savedUser.accountId());
+        
+        return savedUser;
+    }
+
+    /*
+    * 사용자 조회 (ID)
     */
     public User getUser(Long userId){
         User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND, userId));
+        log.debug("유저 정보 - {}", user);
+        return user;
+    }
+
+    /**
+     * 사용자 조회 (AccountId)
+     */
+    public User getUserByAccountId(String accountId) {
+        User user = userRepository.findByAccountId(accountId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND, accountId));
         log.debug("유저 정보 - {}", user);
         return user;
     }

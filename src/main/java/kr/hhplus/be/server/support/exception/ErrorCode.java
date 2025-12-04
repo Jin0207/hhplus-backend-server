@@ -14,12 +14,14 @@ public enum ErrorCode {
     LESS_THAN_ZERO("E005", "%s는/은 0보다 작을 수 없습니다.", HttpStatus.BAD_REQUEST),
     INVALID_VALUE("E006", "유효하지 않은 %s 값입니다.", HttpStatus.BAD_REQUEST),
 
-    // 포인트 관련 에러 (E100 ~ E199)
+    // 사용자,포인트 관련 에러 (E100 ~ E199)
     CHARGE_LESS_THAN_ZERO("E100", "충전/사용 금액은 0보다 작을 수 없습니다.", HttpStatus.BAD_REQUEST),
     CHARGE_AMOUNT_INVALID("E101", "충전 금액이 유효하지 않습니다.", HttpStatus.BAD_REQUEST),
     POINT_BALANCE_INSUFFICIENT("E102", "포인트 잔액이 부족합니다.", HttpStatus.BAD_REQUEST),
     POINT_BALANCE_MAX("E103", "보유 포인트가 100만을 초과할 수 없습니다.", HttpStatus.NOT_FOUND),
     USER_NOT_FOUND("E104", "사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    USER_ALREADY_EXISTS("E104", "이미 존재하는 계정입니다.", HttpStatus.NOT_FOUND),
+
 
     // 주문 관련 에러 (E200 ~ E299)
     ORDER_FAILED("E200", "주문 %s에 실패했습니다.", HttpStatus.BAD_REQUEST),

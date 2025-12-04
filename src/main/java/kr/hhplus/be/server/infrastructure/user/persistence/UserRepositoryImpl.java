@@ -34,4 +34,14 @@ public class UserRepositoryImpl implements UserRepository{
         UserEntity saved = jpaRepository.save(entity);
         return saved.toDomain();
     }
+    
+    @Override
+    public Optional<User> findByAccountId(String accountId) {
+        return jpaRepository.findByAccountId(accountId);
+    }
+
+    @Override
+    public boolean existsByAccountId(String accountId) {
+        return jpaRepository.existsByAccountId(accountId);
+    }
 }
