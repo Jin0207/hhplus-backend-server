@@ -3,8 +3,8 @@ package kr.hhplus.be.server.application.user.service;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import jakarta.transaction.Transactional;
 import kr.hhplus.be.server.domain.point.entity.PointHistory;
 import kr.hhplus.be.server.domain.point.enums.PointType;
 import kr.hhplus.be.server.domain.point.repository.PointHistoryRepository;
@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 @Slf4j
 public class UserService {
 
