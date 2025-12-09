@@ -43,7 +43,7 @@ public class CouponService {
         String issueKey = COUPON_ISSUE_KEY + couponId + ":user:" + userId;
         String quantityKey = COUPON_QUANTITY_KEY + couponId;
 
-        // 1. Redis 중복 발급 체크 (SETNX)
+        // 1. Redis 중복 발급 체크
         Boolean alreadyIssued = redisTemplate.opsForValue()
             .setIfAbsent(issueKey, "1", Duration.ofDays(1));
         
@@ -52,7 +52,7 @@ public class CouponService {
         }
 
         try {
-            // 2. Redis 재고 차감 (원자적 연산)
+            // 2. Redis 재고 차감
             Long remainingQuantity = redisTemplate.opsForValue().decrement(quantityKey);
             
             if (remainingQuantity == null || remainingQuantity < 0) {
@@ -92,21 +92,25 @@ public class CouponService {
             throw new BusinessException(ErrorCode.COUPON_ISSUE_FAILED, e);
         }
     }
-
     /**
      * 보유 쿠폰 목록 조회 (페이징)
      */
     public Page<UserCouponResponse> getUserCoupons(Long userId, Pageable pageable) {
         Page<UserCoupon> userCoupons = userCouponRepository.findByUserId(userId, pageable);
 
+        List<Long> couponIds = userCoupons.stream()
+            .map(UserCoupon::couponId)
+            .toList();
+
+        Map<Long, Coupon> couponMap = couponRepository.findAllById(couponIds)
+            .stream()
+            .collect(Collectors.toMap(Coupon::id, c -> c));
+
         return userCoupons.map(userCoupon -> {
-            Coupon coupon = couponRepository.findById(userCoupon.couponId())
-                .orElseThrow(() -> new BusinessException(
-                    ErrorCode.COUPON_NOT_FOUND, userCoupon.couponId()));
+            Coupon coupon = couponMap.get(userCoupon.couponId());
             return UserCouponResponse.from(userCoupon, coupon);
         });
     }
-
     /**
      * 사용 가능한 쿠폰 목록 조회 (페이징)
      */
@@ -117,12 +121,10 @@ public class CouponService {
         List<Long> couponIds = userCoupons.stream()
             .map(UserCoupon::couponId)
             .toList();
-
         // 2. 한번에 조회
         Map<Long, Coupon> couponMap = couponRepository.findAllById(couponIds)
             .stream()
             .collect(Collectors.toMap(Coupon::id, c -> c));
-
         // 3. map에서 조회
         return userCoupons.map(userCoupon -> {
             Coupon coupon = couponMap.get(userCoupon.couponId());

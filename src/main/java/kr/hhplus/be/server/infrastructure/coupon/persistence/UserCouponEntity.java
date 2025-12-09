@@ -12,11 +12,7 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "user_coupons", indexes = {
-    @Index(name = "idx_user_id", columnList = "user_id"),
-    @Index(name = "idx_user_status", columnList = "user_id, status"),
-    @Index(name = "idx_status", columnList = "status")
-})
+@Table(name = "user_coupons")
 @IdClass(UserCouponId.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -41,4 +37,28 @@ public class UserCouponEntity extends BaseTimeEntity{
 
     @Column(name = "expired_dttm")
     private LocalDateTime expiredDttm;
+
+    // Entity → Domain
+    public UserCoupon toDomain() {
+        return new UserCoupon(
+            this.userId,
+            this.couponId,
+            this.status,
+            this.usedDttm,
+            this.expiredDttm,
+            this.getCrtDttm(),
+            this.getUpdDttm()
+        );
+    }
+
+    // Domain → Entity
+    public static UserCouponEntity from(UserCoupon domain) {
+        return UserCouponEntity.builder()
+            .userId(domain.userId())
+            .couponId(domain.couponId())
+            .status(domain.status())
+            .usedDttm(domain.usedDttm())
+            .expiredDttm(domain.expiredDttm())
+            .build();
+    }
 }

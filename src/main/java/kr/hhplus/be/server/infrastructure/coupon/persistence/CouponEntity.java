@@ -9,8 +9,8 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import kr.hhplus.be.server.domain.coupon.entity.Coupon;
 import kr.hhplus.be.server.domain.coupon.enums.CouponStatus;
 import kr.hhplus.be.server.domain.coupon.enums.CouponType;
 import kr.hhplus.be.server.infrastructure.common.BaseTimeEntity;
@@ -63,4 +63,38 @@ public class CouponEntity extends BaseTimeEntity{
     @Column(nullable = false, length = 10)
     @Builder.Default
     private CouponStatus status = CouponStatus.ACTIVE;
+
+    // Entity → Domain
+    public Coupon toDomain() {
+        return new Coupon(
+            this.id,
+            this.name,
+            this.type,
+            this.discountValue,
+            this.minOrderPrice,
+            this.validFrom,
+            this.validTo,
+            this.quantity,
+            this.availableQuantity,
+            this.status,
+            this.getCrtDttm(),
+            this.getUpdDttm()
+        );
+    }
+
+    // Domain → Entity
+    public static CouponEntity from(Coupon domain) {
+        return CouponEntity.builder()
+            .id(domain.id())
+            .name(domain.name())
+            .type(domain.type())
+            .discountValue(domain.discountValue())
+            .minOrderPrice(domain.minOrderPrice())
+            .validFrom(domain.validFrom())
+            .validTo(domain.validTo())
+            .quantity(domain.quantity())
+            .availableQuantity(domain.availableQuantity())
+            .status(domain.status())
+            .build();
+    }
 }

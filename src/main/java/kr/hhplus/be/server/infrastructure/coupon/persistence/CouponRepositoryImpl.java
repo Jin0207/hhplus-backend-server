@@ -1,5 +1,6 @@
 package kr.hhplus.be.server.infrastructure.coupon.persistence;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.stereotype.Repository;
@@ -11,7 +12,12 @@ import lombok.RequiredArgsConstructor;
 @Repository
 @RequiredArgsConstructor
 public class CouponRepositoryImpl implements CouponRepository{
-
+    
+    @Override
+    public List<Coupon> findAllById(Iterable<Long> ids) {
+        // TODO Auto-generated method stub
+        return null;
+    }
     @Override
     public Optional<Coupon> findById(Long id) {
         // TODO Auto-generated method stub
