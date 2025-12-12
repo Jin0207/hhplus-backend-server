@@ -38,6 +38,16 @@ public class ProductService {
     }
 
     /**
+     * 재고 증가 (주문 취소 시 복구용)
+     */
+    @Transactional
+    public Product increaseStock(Long productId, Integer quantity) {
+        Product product = getProduct(productId);
+        Product updatedProduct = product.increaseStock(quantity);
+        return productRepository.save(updatedProduct);
+    }
+    
+    /**
      * 재고 차감 (주문 시)
      */
     @Transactional

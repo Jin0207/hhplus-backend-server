@@ -33,6 +33,7 @@ public enum ErrorCode {
     PAYMENT_FAILED("E300", "결제 처리에 실패했습니다.", HttpStatus.BAD_REQUEST),
     PAYMENT_NOT_FOUND("E301", "결제 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     PAYMENT_ALREADY_PROCESSED("E302", "이미 처리된 결제입니다.", HttpStatus.BAD_REQUEST),
+    DUPLICATE_PAYMENT_REQUEST("E303", "이미 처리 중이거나 시도된 결제 요청입니다.", HttpStatus.BAD_REQUEST),
     
     // 쿠폰 관련 에러 (E400 ~ E499)
     COUPON_NOT_FOUND("E400", "쿠폰을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),

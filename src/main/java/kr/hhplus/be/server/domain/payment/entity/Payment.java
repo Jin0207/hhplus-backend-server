@@ -14,6 +14,7 @@ public record Payment(
     Long  id,                 // 식별자
     Long  orderId,            // 주문식별자
     Long  userId,             // 유저식별자
+    String idempotencyKey,   // 멱등성보장키
     Integer price,              // 가격
     PaymentStatus status,       // 상태
     PaymentType paymentType,    // 유형
@@ -30,13 +31,14 @@ public record Payment(
     /**
      * 결제 생성
      */
-    public static Payment create(Long orderId, Long userId, Integer price, PaymentType paymentType) {
+    public static Payment create(Long orderId, Long userId, String idempotencyKey, Integer price, PaymentType paymentType) {
         LocalDateTime now = LocalDateTime.now();
         
         return new Payment(
             null,
             orderId,
             userId,
+            idempotencyKey,
             price,
             PaymentStatus.PENDING,
             paymentType,
@@ -66,6 +68,7 @@ public record Payment(
             this.id,
             this.orderId,
             this.userId,
+            this.idempotencyKey,
             this.price,
             PaymentStatus.COMPLETED,
             this.paymentType,
@@ -76,6 +79,33 @@ public record Payment(
             now,
             this.externalSync,
             (this.externalSync? now : null),
+            this.crtDttm,
+            now
+        );
+    }
+
+    /**
+     * 결제 실패
+     */
+    public Payment fail(String failReason) {
+        
+        LocalDateTime now = LocalDateTime.now();
+        
+        return new Payment(
+            this.id,
+            this.orderId,
+            this.userId,
+            this.idempotencyKey,
+            this.price,
+            PaymentStatus.FAILED,
+            this.paymentType,
+            this.paymentGateway,
+            this.transactionId,
+            failReason,
+            this.requestDttm,
+            null,
+            this.externalSync,
+            null,
             this.crtDttm,
             now
         );

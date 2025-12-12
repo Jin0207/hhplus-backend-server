@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import kr.hhplus.be.server.domain.payment.entity.Payment;
+import kr.hhplus.be.server.domain.payment.enums.PaymentStatus;
 import kr.hhplus.be.server.domain.payment.enums.PaymentType;
 import kr.hhplus.be.server.domain.payment.repository.PaymentRepository;
 import kr.hhplus.be.server.support.exception.BusinessException;
@@ -18,14 +19,34 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     
     /**
+     * 멱등성 검사
+     * 결제상태가 COMPLETED/PENDING 상태인 경우 여기서 예외를 던져서 상위 로직 실행을 차단
+     */
+    @Transactional(readOnly = true)
+    public void checkForIdempotencyKey(String idempotencyKey) {
+         // 멱동성 키로 결제레코드 존재하는지 확인
+        paymentRepository.findByIdempotencyKey(idempotencyKey).ifPresent(existPayment -> {
+            PaymentStatus currentStatus = existPayment.status();
+
+            if(currentStatus == PaymentStatus.COMPLETED){
+                // 이미 처리된 결제
+                throw new BusinessException(ErrorCode.PAYMENT_ALREADY_PROCESSED);
+            }else if(currentStatus == PaymentStatus.PENDING){
+                // 기존 결제상태 '완료'가 아닌 경우 중복 요청으로 간주
+                throw new BusinessException(ErrorCode.DUPLICATE_PAYMENT_REQUEST);
+            }
+
+        });
+    }
+
+    /**
      * 결제 생성
      */
     @Transactional
-    public Payment createPayment(Long orderId, Long userId, Integer price, String paymentTypeString) {
-
+    public Payment createPayment(Long orderId, Long userId, String idempotencyKey, Integer price, String paymentTypeString) {
         PaymentType paymentType = PaymentType.valueOf(paymentTypeString);
 
-        Payment payment = Payment.create(orderId, userId, price, paymentType);
+        Payment payment = Payment.create(orderId, userId, idempotencyKey, price, paymentType);
         return paymentRepository.save(payment);
     }
 
@@ -46,5 +67,17 @@ public class PaymentService {
         Payment payment = getPayment(paymentId);
         Payment completedPayment = payment.complete(payment, transactionId);
         return paymentRepository.save(completedPayment);
+    }
+
+    /**
+     * 결제 실패
+     */
+    @Transactional
+    public Payment failPayment(Long paymentId, String failReason) {
+        Payment payment = paymentRepository.findById(paymentId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_NOT_FOUND));
+        
+        payment.fail(failReason); // 상태 FAILED, fail_reason 업데이트
+        return payment;
     }
 }

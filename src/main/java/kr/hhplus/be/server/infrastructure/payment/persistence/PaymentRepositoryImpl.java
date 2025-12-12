@@ -15,6 +15,12 @@ public class PaymentRepositoryImpl implements PaymentRepository {
     private final PaymentJpaRepository jpaRepository;
 
     @Override
+    public Optional<Payment> findByIdempotencyKey(String idempotencyKey) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
     public Optional<Payment> findById(Long id) {
         // TODO Auto-generated method stub
         return Optional.empty();

@@ -6,7 +6,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import kr.hhplus.be.server.application.order.dto.request.OrderCreateRequest;
+import kr.hhplus.be.server.application.order.dto.request.OrderCreateRequest;ata;
 import kr.hhplus.be.server.application.order.dto.response.OrderResponse;
 import kr.hhplus.be.server.application.order.service.OrderService;
 import kr.hhplus.be.server.application.payment.service.PaymentService;
@@ -32,70 +32,84 @@ public class OrderFacade {
     private final UserService userService;
 
     /**
-     * 주문 생성 및 결제 (전체 프로세스)
+     * 주문 및 결제 초기화, 멱등성 보장
      */
     @Transactional
-    public OrderResponse createOrderWithPayment(Long userId, OrderCreateRequest request) {
-        try {
-            // 1. 재고 확인 및 차감
-            List<OrderDetail> orderDetails = processStockDeduction(request.items());
-            
-            // 2. 총 금액 계산
-            Integer totalPrice = calculateTotalPrice(orderDetails);
-            Integer discountPrice = request.discountPrice() != null ? request.discountPrice() : 0;
-            Integer finalPrice = totalPrice - discountPrice;
-            
-            // 3. 포인트 차감
-            if (request.pointToUse() != null && request.pointToUse() > 0) {
-                userService.usePoint(userId, request.pointToUse(), "주문 결제");
-                finalPrice -= request.pointToUse();
-            }
-            
-            // 4. 주문 생성
-            Order order = orderService.createOrder(
-                userId,
-                request.couponId(),
-                totalPrice,
-                discountPrice,
-                finalPrice,
-                orderDetails
-            );
-            
-            // 5. 결제 생성 및 처리
-            Payment payment = paymentService.createPayment(
-                order.id(),
-                userId,
-                finalPrice,
-                request.paymentType()
-            );
-            
-            // 6. 외부 결제 처리 (시뮬레이션)
-            String transactionId = "";
-            if(payment.paymentType() == PaymentType.CARD){
-                transactionId = processExternalPayment(payment, request);
-            }
-            
-            // 7. 결제 완료 처리
-            Payment completedPayment = paymentService.completePayment(payment.id(), transactionId);
-            
-            // 8. 주문 완료 처리
-            Order completedOrder = orderService.completeOrder(order.id());
-            
-            // 9. 판매량 증가
-            updateProductSales(orderDetails);
-            
-            log.info("주문 완료: orderId={}, paymentId={}, userId={}", 
-                completedOrder.id(), completedPayment.id(), userId);
-            
-            return OrderResponse.from(completedOrder, completedPayment, orderDetails);
-            
-        } catch (BusinessException e) {
-            log.error("주문 실패: userId={}, error={}", userId, e.getMessage());
-            throw e;
-        } catch (Exception e) {
-            log.error("주문 처리 중 예외 발생", e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, e);
+    public OrderAndPaymentData initOrder(Long userId, OrderCreateRequest request){
+        // 1. 재고 확인 및 차감
+        List<OrderDetail> orderDetails = processStockDeduction(request.items());
+
+        // 2. 총 금액 계산 및 포인트 차감
+        Integer totalPrice = calculateTotalPrice(orderDetails);
+        Integer discountPrice = request.discountPrice() != null ? request.discountPrice() : 0;
+        Integer finalPrice = totalPrice - discountPrice;
+
+        if (request.pointToUse() != null && request.pointToUse() > 0) {
+            userService.usePoint(userId, request.pointToUse(), "주문 결제");
+            finalPrice -= request.pointToUse();
         }
+
+        // 4. 주문 생성
+        Order order = orderService.createOrder(
+            userId,
+            request.couponId(),
+            totalPrice,
+            discountPrice,
+            finalPrice,
+            orderDetails
+        );
+        
+        // 5. 결제 생성 및 처리
+        Payment payment = paymentService.createPayment(
+            order.id(),
+            userId,
+            request.idempotencyKey(),
+            finalPrice,
+            request.paymentType()
+        );
+
+        return new OrderAndPaymentData(order, orderDetails, payment);
+    }
+
+    /**
+     * 주문 생성 및 결제
+     */
+    public OrderResponse completeOrder(Long userId, OrderCreateRequest request) {
+
+        // 1. 멱등성 키 검사
+        paymentService.checkForIdempotencyKey(request.idempotencyKey());
+        
+        OrderAndPaymentData initialData;
+        try {
+            // 2. 초기화
+            initialData = initOrder(userId, request);
+        } catch (BusinessException e) {
+            throw e;
+        }
+        
+        Payment payment = initialData.payment();
+        Order order = initialData.order();
+        List<OrderDetail> orderDetails = initialData.orderDetails();
+
+        // 3. 외부 결제 처리 (시뮬레이션)
+        String transactionId = "";
+        if(payment.paymentType() == PaymentType.CARD){
+            transactionId = processExternalPayment(payment, request);
+        }
+        
+        // 7. 결제 완료 처리
+        Payment completedPayment = paymentService.completePayment(payment.id(), transactionId);
+        
+        // 8. 주문 완료 처리
+        Order completedOrder = orderService.completeOrder(order.id());
+        
+        // 9. 판매량 증가
+        updateProductSales(orderDetails);
+        
+        log.info("주문 완료: orderId={}, paymentId={}, userId={}", 
+            completedOrder.id(), completedPayment.id(), userId);
+        
+        return OrderResponse.from(completedOrder, completedPayment, orderDetails);
     }
 
     /**

@@ -37,6 +37,9 @@ public class PaymentEntity extends BaseTimeEntity{
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
+    @Column(name="idempotency_key", nullable = false, unique = true, length = 100)
+    private String idempotencyKey;
+
     @Column(nullable = false)
     private Integer price;
 

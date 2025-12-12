@@ -21,6 +21,30 @@ public record Product(
     LocalDateTime updDttm       // 수정일
 ) {  
     /**
+     * 재고  증가
+     * @param quantity 증가할 수량
+     * @return Product
+     */
+    public Product increaseStock(Integer quantity) {
+        validateQuantity(quantity);
+        
+        Integer newStock = this.stock + quantity;
+        ProductStatus newStatus = (this.status == ProductStatus.SOLD_OUT) ? ProductStatus.ON_SALE : this.status;
+        
+        return new Product(
+            this.id,
+            this.productName,
+            this.price,
+            newStock,
+            this.category,
+            newStatus,
+            this.salesQuantity,
+            this.crtDttm,
+            LocalDateTime.now()
+        );
+    }
+
+    /**
      * 재고 차감
      * @param quantity 차감할 수량
      * @return Product
