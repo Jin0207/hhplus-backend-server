@@ -65,7 +65,7 @@ public class PaymentService {
     @Transactional
     public Payment completePayment(Long paymentId, String transactionId) {
         Payment payment = getPayment(paymentId);
-        Payment completedPayment = payment.complete(payment, transactionId);
+        Payment completedPayment = payment.complete(transactionId);
         return paymentRepository.save(completedPayment);
     }
 

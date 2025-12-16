@@ -46,5 +46,20 @@ public record OrderDetail(
             null
         );
     }
+    /**
+    * 주문 order ID 주입
+    */
+    public OrderDetail assignOrderId(Long orderId) {
+        return new OrderDetail(
+            id,
+            orderId,
+            productId,
+            quantity,
+            unitPrice,
+            subtotal,
+            crtDttm,
+            null
+        );
+    }
 
 }

@@ -8,7 +8,7 @@ import kr.hhplus.be.server.domain.payment.entity.Payment;
 import lombok.Builder;
 
 @Builder
-public record OrderAndPaymentData (
+public record OrderAndPayment (
     Order order,
     List<OrderDetail> orderDetails,
     Payment payment

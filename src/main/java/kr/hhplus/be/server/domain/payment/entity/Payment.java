@@ -57,7 +57,7 @@ public record Payment(
     /**
      * 결제 완료
      */
-    public Payment complete(Payment payment, String trancsactionId) {
+    public Payment complete(String trancsactionId) {
         if (this.status != PaymentStatus.PENDING) {
             throw new BusinessException(ErrorCode.PAYMENT_ALREADY_PROCESSED);
         }

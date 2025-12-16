@@ -72,4 +72,26 @@ public record UserCoupon(
             LocalDateTime.now()
         );
     }
+
+    /**
+     * 쿠폰 복구 (주문 취소 시)
+     */
+    public UserCoupon restore() {
+        if (this.status != UserCouponStatus.USED) {
+            throw new BusinessException(
+                ErrorCode.INVALID_COUPON_STATUS,
+                this.status
+            );
+        }
+        
+        return new UserCoupon(
+            this.userId,
+            this.couponId,
+            UserCouponStatus.AVAILABLE,
+            null,
+            this.expiredDttm,
+            this.crtDttm,
+            LocalDateTime.now()
+        );
+    }
 }

@@ -90,4 +90,9 @@ public record Order(
             LocalDateTime.now()
         );
     }
+
+    public boolean canCancel() {
+        return this.orderStatus == OrderStatus.PENDING 
+            || this.orderStatus == OrderStatus.COMPLETED;
+    }
 }

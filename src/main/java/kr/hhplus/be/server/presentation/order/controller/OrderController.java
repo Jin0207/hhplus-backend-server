@@ -33,7 +33,7 @@ class OrderController {
             @RequestHeader("X-USER-ID") Long userId,
             @Valid @RequestBody OrderCreateRequest request) {
         
-        OrderResponse response = orderFacade.createOrderWithPayment(userId, request);
+        OrderResponse response = orderFacade.completeOrder(userId, request);
         return ApiResponse.success("주문 생성 성공", response);
     }
 }

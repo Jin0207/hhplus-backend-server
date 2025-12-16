@@ -14,8 +14,6 @@ public record OrderCreateRequest(
     
     Long couponId,
     
-    Integer discountPrice,
-    
     @Min(value = 0, message = "포인트는 0 이상이어야 합니다")
     Integer pointToUse,
     

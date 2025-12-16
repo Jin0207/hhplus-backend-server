@@ -34,6 +34,7 @@ public enum ErrorCode {
     PAYMENT_NOT_FOUND("E301", "결제 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     PAYMENT_ALREADY_PROCESSED("E302", "이미 처리된 결제입니다.", HttpStatus.BAD_REQUEST),
     DUPLICATE_PAYMENT_REQUEST("E303", "이미 처리 중이거나 시도된 결제 요청입니다.", HttpStatus.BAD_REQUEST),
+    FINAL_PRICE_THAN_ZERO("E303", "최종금액은 0원 이상이어야합니다.", HttpStatus.BAD_REQUEST),
     
     // 쿠폰 관련 에러 (E400 ~ E499)
     COUPON_NOT_FOUND("E400", "쿠폰을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
@@ -43,6 +44,7 @@ public enum ErrorCode {
     COUPON_MIN_OREDER_PRICE_NOT_MET("E404", "최소 주문 금액을 충족하지 못했습니다.(최소주문금액: %s)", HttpStatus.BAD_REQUEST),
     COUPON_NOT_AVAILABLE("E405", "사용불가능한 쿠폰입니다.", HttpStatus.BAD_REQUEST),
     COUPON_ISSUE_FAILED("E406", "쿠폰 발급에 실패하였습니다.", HttpStatus.BAD_REQUEST),
+    INVALID_COUPON_STATUS("E407", "쿠폰 상태가 유효하지 않습니다.", HttpStatus.BAD_REQUEST),
     
     // 상품 관련 에러 (E500 ~ E599)
     PRODUCT_NOT_FOUND("E500", "상품을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),

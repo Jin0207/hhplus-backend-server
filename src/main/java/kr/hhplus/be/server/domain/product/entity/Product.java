@@ -164,16 +164,6 @@ public record Product(
     // ==================== 검증 메서드 ====================
     
     /**
-     * 수량 검증
-     */
-    private void validateQuantity(Integer quantity) {
-        if (quantity == null || quantity <= 0) {
-            // 수량은 0보다 작을 수 없습니다.
-            throw new BusinessException(ErrorCode.LESS_THAN_ZERO, "수량");
-        }
-    }
-
-    /**
      * 상품 판매 가능 상태 검증 (주문 전)
      */
     public void validateForOrder(Integer quantity) {
@@ -193,5 +183,15 @@ public record Product(
         
         // 수량 검증
         validateQuantity(quantity);
+    }
+
+    /**
+     * 수량 검증
+     */
+    private void validateQuantity(Integer quantity) {
+        if (quantity == null || quantity <= 0) {
+            // 수량은 0보다 작을 수 없습니다.
+            throw new BusinessException(ErrorCode.LESS_THAN_ZERO, "수량");
+        }
     }
 }

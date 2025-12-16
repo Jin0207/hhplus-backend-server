@@ -15,4 +15,12 @@ public interface UserCouponRepository {
     Page<UserCoupon> findByUserIdAndStatus(Long userId, UserCouponStatus status, Pageable pageable);
     boolean existsByUserIdAndCouponId(Long userId, Long couponId);
     Optional<UserCoupon> findByUserIdAndCouponId(Long userId, Long couponId);
+    /**
+     * 사용자의 특정 쿠폰 조회 (상태별)
+     */
+    Optional<UserCoupon> findByUserIdAndCouponIdAndStatus(
+        Long userId, 
+        Long couponId, 
+        UserCouponStatus status
+    );
 }

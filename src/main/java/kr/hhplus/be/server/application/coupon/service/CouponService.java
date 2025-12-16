@@ -133,10 +133,49 @@ public class CouponService {
     }
 
     /**
-     * 쿠폰 조회
+     *사용자 쿠폰 조회
      */
-    public Coupon getCoupon(Long couponId) {
+    public Coupon getCoupon(Long userId, Long couponId) {
         return couponRepository.findById(couponId)
             .orElseThrow(() -> new BusinessException(ErrorCode.COUPON_NOT_FOUND, couponId));
+    }
+
+    /**
+     * 쿠폰 사용 처리
+     */
+    @Transactional
+    public void useCoupon(Long userId, Long couponId) {
+        // 사용자의 사용 가능한 쿠폰 조회
+        UserCoupon userCoupon = userCouponRepository
+            .findByUserIdAndCouponIdAndStatus(userId, couponId, UserCouponStatus.AVAILABLE)
+            .orElseThrow(() -> new BusinessException(
+                ErrorCode.COUPON_NOT_FOUND, 
+                userId, 
+                couponId
+            ));
+        
+        // 쿠폰 사용 처리
+        UserCoupon usedCoupon = userCoupon.use();
+        userCouponRepository.save(usedCoupon);
+        
+    }
+
+    /**
+     * 쿠폰 복구 (주문 취소 시)
+     */
+    @Transactional
+    public void restoreCoupon(Long userId, Long couponId) {
+        // 사용된 쿠폰 조회
+        UserCoupon userCoupon = userCouponRepository
+            .findByUserIdAndCouponIdAndStatus(userId, couponId, UserCouponStatus.USED)
+            .orElseThrow(() -> new BusinessException(
+                ErrorCode.COUPON_NOT_FOUND, 
+                userId, 
+                couponId
+            ));
+        
+        // 쿠폰 복구 (AVAILABLE 상태로 변경)
+        UserCoupon restoredCoupon = userCoupon.restore();
+        userCouponRepository.save(restoredCoupon);
     }
 }
