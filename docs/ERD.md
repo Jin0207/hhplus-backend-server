@@ -195,4 +195,21 @@ Table payments {
     external_sync [name: 'idx_external_sync', note: '미동기 건 조회용']
   }
 }
+
+// ============================================
+// OutBox
+// ============================================
+Table outbox_messages {
+  id bigint [primary key, increment, note: '식별자']
+  aggregate_type varchar(50) [not null, note: '집계 타입 (예: ORDER)']
+  aggregate_id bigint [not null, note: '집계 식별자 (주문 ID)']
+  event_type varchar(100) [not null, note: '이벤트 타입 (예: ORDER_COMPLETED)']
+  payload text [not null, note: '전송 데이터 (JSON)']
+  is_processed boolean [default: false, note: '처리 여부']
+  crt_dttm timestamp [default: `now()`, note: '메시지 생성 일시']
+  
+  Indexes {
+    (is_processed, crt_dttm) [name: 'idx_outbox_unprocessed']
+  }
+}
   ```

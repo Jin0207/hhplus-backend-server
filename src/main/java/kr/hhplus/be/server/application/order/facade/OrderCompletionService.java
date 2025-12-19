@@ -1,20 +1,27 @@
 package kr.hhplus.be.server.application.order.facade;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import kr.hhplus.be.server.application.order.dto.response.OrderAndPayment;
 import kr.hhplus.be.server.application.order.dto.response.OrderResponse;
-import kr.hhplus.be.server.application.order.dto.response.PaymentResult;
 import kr.hhplus.be.server.application.order.service.OrderService;
+import kr.hhplus.be.server.application.payment.dto.response.PaymentResult;
 import kr.hhplus.be.server.application.payment.service.PaymentService;
 import kr.hhplus.be.server.application.product.service.ProductService;
 import kr.hhplus.be.server.domain.order.entity.Order;
 import kr.hhplus.be.server.domain.order.entity.OrderDetail;
+import kr.hhplus.be.server.domain.outbox.entity.OutBoxMessage;
+import kr.hhplus.be.server.domain.outbox.repository.OutBoxMessageRepository;
 import kr.hhplus.be.server.domain.payment.entity.Payment;
+import kr.hhplus.be.server.infrastructure.outbox.OutBoxMessageEntity;
 import kr.hhplus.be.server.support.exception.BusinessException;
 import kr.hhplus.be.server.support.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +35,7 @@ public class OrderCompletionService {
     private final PaymentService paymentService;
     private final ProductService productService;
     private final ApplicationEventPublisher eventPublisher;
-    
+
     /**
      * 주문 완료 처리 - 최종 트랜잭션
      */
@@ -50,6 +57,8 @@ public class OrderCompletionService {
             // 3. 판매량 증가
             updateProductSales(orderData.orderDetails());
             
+            eventPublisher.publishEvent(orderData);
+
             log.info("주문 완료: orderId={}, paymentId={}", 
                 completedOrder.id(), completedPayment.id());
             

@@ -3,7 +3,7 @@ package kr.hhplus.be.server.application.payment.facade;
 import org.springframework.stereotype.Component;
 
 import kr.hhplus.be.server.application.order.dto.request.OrderCreateRequest;
-import kr.hhplus.be.server.application.order.dto.response.PaymentResult;
+import kr.hhplus.be.server.application.payment.dto.response.PaymentResult;
 import kr.hhplus.be.server.application.payment.facade.interfaces.PaymentProcessor;
 import kr.hhplus.be.server.application.payment.service.PaymentService;
 import kr.hhplus.be.server.application.user.service.UserService;

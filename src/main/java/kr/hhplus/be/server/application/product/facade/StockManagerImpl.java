@@ -1,4 +1,4 @@
-package kr.hhplus.be.server.application.order.facade;
+package kr.hhplus.be.server.application.product.facade;
 
 import java.util.List;
 

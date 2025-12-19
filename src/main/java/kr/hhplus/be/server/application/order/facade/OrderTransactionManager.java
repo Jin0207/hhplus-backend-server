@@ -12,6 +12,7 @@ import kr.hhplus.be.server.application.order.dto.response.OrderPrice;
 import kr.hhplus.be.server.application.order.service.OrderDetailService;
 import kr.hhplus.be.server.application.order.service.OrderService;
 import kr.hhplus.be.server.application.payment.service.PaymentService;
+import kr.hhplus.be.server.application.product.facade.StockManagerImpl;
 import kr.hhplus.be.server.application.user.service.UserService;
 import kr.hhplus.be.server.domain.order.entity.Order;
 import kr.hhplus.be.server.domain.order.entity.OrderDetail;

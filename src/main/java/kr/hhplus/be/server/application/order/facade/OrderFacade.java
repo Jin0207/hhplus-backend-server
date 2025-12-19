@@ -5,7 +5,7 @@ import org.springframework.stereotype.Component;
 import kr.hhplus.be.server.application.order.dto.request.OrderCreateRequest;
 import kr.hhplus.be.server.application.order.dto.response.OrderAndPayment;
 import kr.hhplus.be.server.application.order.dto.response.OrderResponse;
-import kr.hhplus.be.server.application.order.dto.response.PaymentResult;
+import kr.hhplus.be.server.application.payment.dto.response.PaymentResult;
 import kr.hhplus.be.server.application.payment.facade.PaymentProcessorImpl;
 import kr.hhplus.be.server.support.exception.BusinessException;
 import kr.hhplus.be.server.support.exception.ErrorCode;
