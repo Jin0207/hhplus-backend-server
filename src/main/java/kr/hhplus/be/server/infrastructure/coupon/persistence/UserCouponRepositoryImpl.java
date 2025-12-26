@@ -14,33 +14,41 @@ import lombok.RequiredArgsConstructor;
 @Repository
 @RequiredArgsConstructor
 public class UserCouponRepositoryImpl implements UserCouponRepository{
+    
+    private final UserCouponJpaRepository userCouponJpaRepository;
+
     @Override
     public UserCoupon save(UserCoupon userCoupon) {
-        // TODO Auto-generated method stub
-        return null;
+        UserCouponEntity entity = UserCouponEntity.from(userCoupon);
+        return userCouponJpaRepository.save(entity).toDomain();
     }
     
     @Override
     public boolean existsByUserIdAndCouponId(Long userId, Long couponId) {
-        // TODO Auto-generated method stub
-        return false;
-    }
-
-    @Override
-    public Page<UserCoupon> findByUserId(Long userI, Pageable pageable) {
-        // TODO Auto-generated method stub
-        return null;
+        return userCouponJpaRepository.existsByIdUserIdAndIdCouponId(userId, couponId);
     }
 
     @Override
     public Optional<UserCoupon> findByUserIdAndCouponId(Long userId, Long couponId) {
-        // TODO Auto-generated method stub
-        return Optional.empty();
+        return userCouponJpaRepository.findByIdUserIdAndIdCouponId(userId, couponId)
+                .map(UserCouponEntity::toDomain);
+    }
+
+    @Override
+    public Optional<UserCoupon> findByUserIdAndCouponIdAndStatus(Long userId, Long couponId, UserCouponStatus status) {
+        return userCouponJpaRepository.findByIdUserIdAndIdCouponIdAndStatus(userId, couponId, status)
+                .map(UserCouponEntity::toDomain);
+    }
+
+    @Override
+    public Page<UserCoupon> findByUserId(Long userId, Pageable pageable) {
+        return userCouponJpaRepository.findByIdUserId(userId, pageable)
+                .map(UserCouponEntity::toDomain);
     }
 
     @Override
     public Page<UserCoupon> findByUserIdAndStatus(Long userId, UserCouponStatus status, Pageable pageable) {
-        // TODO Auto-generated method stub
-        return null;
+        return userCouponJpaRepository.findByIdUserIdAndStatus(userId, status, pageable)
+                .map(UserCouponEntity::toDomain);
     }
 }
