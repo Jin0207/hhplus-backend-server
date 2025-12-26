@@ -1,4 +1,4 @@
-package kr.hhplus.be.server.domain.user.service;
+package kr.hhplus.be.server.application.user.service;
 
 import static org.mockito.Mockito.when;
 

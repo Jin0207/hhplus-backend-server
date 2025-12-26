@@ -1,4 +1,4 @@
-package kr.hhplus.be.server.domain.product.service;
+package kr.hhplus.be.server.application.product.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -49,7 +49,7 @@ public class ProductServiceTest {
 
     private ProductSearchCommand searchCommand;
     private List<Product> mockProductList;
-    private Page<ProductEntity> mockProductEntityPage;
+    private Page<Product> mockProductPage;
     
     @BeforeEach
     void setUp() {
@@ -69,7 +69,7 @@ public class ProductServiceTest {
             new Product(
                 1L, 
                 "상의1", 
-                1900000, 
+                1900000L, 
                 10, 
                 ProductCategory.TOP, 
                 ProductStatus.ON_SALE, 
@@ -80,7 +80,7 @@ public class ProductServiceTest {
             new Product(
                 2L, 
                 "바지1", 
-                250000, 
+                250000L, 
                 10, 
                 ProductCategory.PANTS, 
                 ProductStatus.ON_SALE, 
@@ -89,14 +89,13 @@ public class ProductServiceTest {
                 null
             )
         );
-
-        // Entity 페이지 (Repository가 반환)
-        List<ProductEntity> entityList = mockProductList.stream()
-            .map(ProductEntity::from)
-            .toList();
         
         Pageable pageable = PageRequest.of(0, 10);
-        mockProductEntityPage = new PageImpl<>(entityList, pageable, entityList.size());
+        mockProductPage = new PageImpl<>(
+            mockProductList,
+            pageable,
+            mockProductList.size()
+        );
     }
 
     @Test
@@ -106,7 +105,7 @@ public class ProductServiceTest {
         when(productRepository.findBySearch(
             any(ProductSearch.class), 
             any(Pageable.class)
-        )).thenReturn(mockProductEntityPage);
+        )).thenReturn(mockProductPage);
 
         // when
         PageResponse<ProductResponse> result = productService.search(searchCommand);
@@ -128,7 +127,7 @@ public class ProductServiceTest {
     void 빈_상품_목록_조회() {
         // given
         Pageable pageable = PageRequest.of(0, 10);
-        Page<ProductEntity> emptyPage = new PageImpl<>(List.of(), pageable, 0);
+        Page<Product> emptyPage = new PageImpl<>(List.of(), pageable, 0);
         
         when(productRepository.findBySearch(
             any(ProductSearch.class), 
@@ -161,15 +160,16 @@ public class ProductServiceTest {
             10
         );
         
-        List<ProductEntity> filteredEntities = List.of(
-            ProductEntity.from(mockProductList.get(0))
-        );
-        Page<ProductEntity> filteredPage = new PageImpl<>(
-            filteredEntities, 
-            PageRequest.of(0, 10), 
-            1
+        List<Product> filteredProducts = List.of(
+            mockProductList.get(0) // "상의1"
         );
         
+        Page<Product> filteredPage = new PageImpl<>(
+            filteredProducts,
+            PageRequest.of(0, 10),
+            filteredProducts.size()
+        );
+
         when(productRepository.findBySearch(
             any(ProductSearch.class), 
             any(Pageable.class)
