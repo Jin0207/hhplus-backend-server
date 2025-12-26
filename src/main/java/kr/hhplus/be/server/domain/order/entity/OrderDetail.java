@@ -13,8 +13,8 @@ public record OrderDetail(
     Long  orderId,        // 주문식별자
     Long  productId,      // 상품식별자
     Integer quantity,       // 수량
-    Integer unitPrice,      // 단가
-    Integer subtotal,       // 소계
+    Long unitPrice,      // 단가
+    Long subtotal,       // 소계
     LocalDateTime crtDttm,  // 생성일
     LocalDateTime updDttm   // 수정일
 ) {
@@ -25,14 +25,14 @@ public record OrderDetail(
             Long orderId,
             Long productId,
             Integer quantity,
-            Integer unitPrice) {
+            Long unitPrice) {
         
         if (quantity <= 0) {
             // 주문 상품은 최소 1개 이상이어야 합니다.
             throw new BusinessException(ErrorCode.ORDER_ITEM_EMPTY);
         }
         
-        Integer subtotal = quantity * unitPrice;
+        Long subtotal = quantity * unitPrice;
         LocalDateTime now = LocalDateTime.now();
         
         return new OrderDetail(

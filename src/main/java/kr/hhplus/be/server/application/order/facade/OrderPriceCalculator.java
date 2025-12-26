@@ -29,46 +29,43 @@ public class OrderPriceCalculator {
             OrderCreateRequest request) {
         
         // 1. 총 상품금액 계산
-        Integer totalPrice = calculateTotalPrice(orderDetails);
+        Long totalPrice = calculateTotalPrice(orderDetails);
         
-        // 2. 쿠폰 할인 적용
-        Long couponId = null;
-        Integer discountPrice = 0;
-        if (request.couponId() != null) {
-            //쿠폰 조회 및 할인 금액 계산
-            couponId = request.couponId();
-            Coupon coupon = couponService.getCoupon(userId, couponId);
+        // 2. 쿠폰 할인 계산
+        Long couponId = request.couponId();
+        Long discountPrice = 0L;
 
+        if (couponId != null) {
+            Coupon coupon = couponService.getCoupon(userId, couponId);
             discountPrice = coupon.calculateDiscountAmount(totalPrice);
-            
-            log.debug("쿠폰 할인 계산: couponId={}, totalPrice={}, discountAmount={}", 
-                couponId, totalPrice, discountPrice);
         }
 
-        // 최종 금액 = 총액 - 할인
-        Integer finalPrice = totalPrice - discountPrice;
+        // 3. 포인트 차감 적용 (추가된 부분)
+        Long pointToUse = request.pointToUse() != null ? request.pointToUse() : 0L;
+
+        // 최종 금액 = 총액 - 쿠폰할인 - 포인트사용
+        Long finalPrice = totalPrice - discountPrice - pointToUse;
         
-        // 유효성 검증
+        // 4. 유효성 검증
         if (finalPrice < 0) {
             throw new BusinessException(ErrorCode.FINAL_PRICE_THAN_ZERO);
         }
         
-        log.debug("가격 계산 완료: total={}, discount={}, final={}", 
-            totalPrice, discountPrice, finalPrice);
+        log.debug("가격 계산 완료: total={}, discount={}, point={}, final={}", 
+            totalPrice, discountPrice, pointToUse, finalPrice);
         
         return OrderPrice.builder()
             .totalPrice(totalPrice)
             .discountPrice(discountPrice)
             .couponId(couponId)
-            .pointToUse(finalPrice)  // 최종 금액 = 사용할 포인트
+            .pointToUse(pointToUse)
             .finalPrice(finalPrice)
             .build();
     }
     
-    private Integer calculateTotalPrice(List<OrderDetail> orderDetails) {
+    private Long calculateTotalPrice(List<OrderDetail> orderDetails) {
         return orderDetails.stream()
-            .mapToInt(detail -> detail.unitPrice() * detail.quantity())
+            .mapToLong(detail -> detail.unitPrice() * detail.quantity())
             .sum();
     }
-    
 }

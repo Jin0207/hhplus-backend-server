@@ -14,8 +14,8 @@ public record Coupon(
     Long id,                 // 식별자
     String name,                // 쿠폰명
     CouponType type,            // 할인타입
-    Integer discountValue,      // 할인금액/%
-    Integer minOrderPrice,      // 최소주문금액
+    Long discountValue,      // 할인금액/%
+    Long minOrderPrice,      // 최소주문금액
     LocalDateTime validFrom,    // 유효시작일
     LocalDateTime validTo,      // 유효종료일
     Integer quantity,           // 총발행수량
@@ -58,25 +58,25 @@ public record Coupon(
     /*
     *   할인 금액 계산
     */
-    public Integer calculateDiscountAmount(Integer orderPrice){
+    public Long calculateDiscountAmount(Long orderPrice){
         if(orderPrice < this.minOrderPrice){
-            throw new BusinessException(ErrorCode.COUPON_MIN_OREDER_PRICE_NOT_MET, this.minOrderPrice);
+            throw new BusinessException(ErrorCode.COUPON_MIN_ORDER_PRICE_NOT_MET, this.minOrderPrice);
         }
 
         if(this.type == CouponType.AMOUNT){
             // 금액 할인: 할인 금액만큼 차감 (주문 금액보다 클 수 없음)
-            return Math.min(this.discountValue, orderPrice);
+            return Math.min(this.discountValue.longValue(), orderPrice);
         }else{
              // 퍼센트 할인: 주문 금액의 N% 차감   
-             return (orderPrice * this.discountValue) / 100;
+             return (orderPrice * this.discountValue) / 100L;
         }
     }
     
     /**
      * 최종 결제 금액 계산
      */
-    public Integer calculateFinalPrice(Integer orderPrice) {
-        Integer discountAmount = calculateDiscountAmount(orderPrice);
+    public Long calculateFinalPrice(Long orderPrice) {
+        Long discountAmount = calculateDiscountAmount(orderPrice);
         return orderPrice - discountAmount;
     }
 }

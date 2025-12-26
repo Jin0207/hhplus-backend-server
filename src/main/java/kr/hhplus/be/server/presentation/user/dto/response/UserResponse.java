@@ -14,7 +14,7 @@ public record UserResponse(
     @Schema(description = "계정 ID")
     String accountId,
     @Schema(description = "보유포인트")
-    Integer point,
+    Long point,
     @Schema(description = "생성일")
     LocalDateTime crtDttm,
     @Schema(description = "수정일")

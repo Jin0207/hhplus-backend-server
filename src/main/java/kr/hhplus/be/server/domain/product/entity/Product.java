@@ -12,7 +12,7 @@ import kr.hhplus.be.server.support.exception.ErrorCode;
 public record Product(
     Long id,                 // 식별자
     String productName,         // 상품명
-    Integer price,              // 가격
+    Long price,              // 가격
     Integer stock,              // 재고
     ProductCategory category,   // 카테고리
     ProductStatus status,       // 상태
@@ -156,7 +156,7 @@ public record Product(
      * @param quantity 주문 수량
      * @return 총 금액
      */
-    public Integer calculateTotalPrice(Integer quantity) {
+    public Long calculateTotalPrice(Integer quantity) {
         validateQuantity(quantity);
         return this.price * quantity;
     }

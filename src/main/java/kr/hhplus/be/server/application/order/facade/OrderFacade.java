@@ -1,6 +1,7 @@
 package kr.hhplus.be.server.application.order.facade;
 
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import kr.hhplus.be.server.application.order.dto.request.OrderCreateRequest;
 import kr.hhplus.be.server.application.order.dto.response.OrderAndPayment;
@@ -18,11 +19,11 @@ import lombok.extern.slf4j.Slf4j;
 public class OrderFacade {
     private final OrderTransactionManager orderTransactionManager;
     private final PaymentProcessorImpl paymentProcessor;
-    private final OrderCompletionService orderCompletionService;
 
     /**
      * 주문 및 결제 완료
      */
+    @Transactional
     public OrderResponse completeOrder(Long userId, OrderCreateRequest request) {
 
         try {
@@ -40,16 +41,17 @@ public class OrderFacade {
             
             // 4. 주문 완료 처리
             if (paymentResult.isSuccess()) {
-                OrderResponse response = orderCompletionService.completeOrder(
+                OrderResponse response = orderTransactionManager.completeOrder(
                     initialData, 
                     paymentResult
                 );
 
                 return response;
-            } else {
-                // 포인트 결제는 항상 성공하므로 여기 올 일 없음
-                orderTransactionManager.rollbackOrder(initialData);
-                throw new BusinessException(ErrorCode.PAYMENT_FAILED, paymentResult.failReason());
+            } else { //하나의 트랜잭션으로 실패시 전체 롤백
+                throw new BusinessException(
+                    ErrorCode.PAYMENT_FAILED, 
+                    paymentResult.failReason()
+                );
             }
         } catch (BusinessException e) {
             log.error("주문 처리 실패 (비즈니스): userId={}, error={}", 

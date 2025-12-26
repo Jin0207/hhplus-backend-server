@@ -25,7 +25,6 @@ import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 @Slf4j
 public class CouponService {
     private final CouponRepository couponRepository;
@@ -63,7 +62,7 @@ public class CouponService {
             }
 
             // 3. DB 처리
-            Coupon coupon = couponRepository.findByIdWithLock(couponId)
+            Coupon coupon = couponRepository.findById(couponId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.COUPON_NOT_FOUND));
 
             if (!coupon.canIssue()) {
@@ -95,6 +94,7 @@ public class CouponService {
     /**
      * 보유 쿠폰 목록 조회 (페이징)
      */
+    @Transactional(readOnly = true)
     public Page<UserCouponResponse> getUserCoupons(Long userId, Pageable pageable) {
         Page<UserCoupon> userCoupons = userCouponRepository.findByUserId(userId, pageable);
 
@@ -114,6 +114,7 @@ public class CouponService {
     /**
      * 사용 가능한 쿠폰 목록 조회 (페이징)
      */
+    @Transactional(readOnly = true)
     public Page<UserCouponResponse> getAvailableCoupons(Long userId, Pageable pageable) {
         Page<UserCoupon> userCoupons = userCouponRepository
             .findByUserIdAndStatus(userId, UserCouponStatus.AVAILABLE, pageable);
@@ -135,6 +136,7 @@ public class CouponService {
     /**
      *사용자 쿠폰 조회
      */
+    @Transactional(readOnly = true)
     public Coupon getCoupon(Long userId, Long couponId) {
         return couponRepository.findById(couponId)
             .orElseThrow(() -> new BusinessException(ErrorCode.COUPON_NOT_FOUND, couponId));
@@ -143,7 +145,6 @@ public class CouponService {
     /**
      * 쿠폰 사용 처리
      */
-    @Transactional
     public void useCoupon(Long userId, Long couponId) {
         // 사용자의 사용 가능한 쿠폰 조회
         UserCoupon userCoupon = userCouponRepository
@@ -163,7 +164,6 @@ public class CouponService {
     /**
      * 쿠폰 복구 (주문 취소 시)
      */
-    @Transactional
     public void restoreCoupon(Long userId, Long couponId) {
         // 사용된 쿠폰 조회
         UserCoupon userCoupon = userCouponRepository

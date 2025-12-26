@@ -1,16 +1,11 @@
 package kr.hhplus.be.server.application.order.service;
 
-import java.util.List;
-
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import kr.hhplus.be.server.application.order.dto.response.OrderPrice;
-import kr.hhplus.be.server.application.product.service.StockService;
 import kr.hhplus.be.server.domain.order.entity.Order;
-import kr.hhplus.be.server.domain.order.entity.OrderDetail;
 import kr.hhplus.be.server.domain.order.enums.OrderStatus;
-import kr.hhplus.be.server.domain.order.repository.OrderDetailRepository;
 import kr.hhplus.be.server.domain.order.repository.OrderRepository;
 import kr.hhplus.be.server.support.exception.BusinessException;
 import kr.hhplus.be.server.support.exception.ErrorCode;
@@ -23,8 +18,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class OrderService {
     private final OrderRepository orderRepository;
-    private final OrderDetailRepository orderDetailRepository;
-    private final StockService stockService;
 
     /**
      * 주문 생성

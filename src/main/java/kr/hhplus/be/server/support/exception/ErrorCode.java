@@ -41,7 +41,7 @@ public enum ErrorCode {
     COUPON_ALREADY_ISSUED("E401", "이미 발급된 쿠폰입니다.", HttpStatus.BAD_REQUEST),
     COUPON_OUT_OF_STOCK("E402", "쿠폰이 품절되었습니다.", HttpStatus.BAD_REQUEST),
     COUPON_EXPIRED("E403", "만료된 쿠폰입니다.", HttpStatus.BAD_REQUEST),
-    COUPON_MIN_OREDER_PRICE_NOT_MET("E404", "최소 주문 금액을 충족하지 못했습니다.(최소주문금액: %s)", HttpStatus.BAD_REQUEST),
+    COUPON_MIN_ORDER_PRICE_NOT_MET("E404", "최소 주문 금액을 충족하지 못했습니다.(최소주문금액: %s)", HttpStatus.BAD_REQUEST),
     COUPON_NOT_AVAILABLE("E405", "사용불가능한 쿠폰입니다.", HttpStatus.BAD_REQUEST),
     COUPON_ISSUE_FAILED("E406", "쿠폰 발급에 실패하였습니다.", HttpStatus.BAD_REQUEST),
     INVALID_COUPON_STATUS("E407", "쿠폰 상태가 유효하지 않습니다.", HttpStatus.BAD_REQUEST),

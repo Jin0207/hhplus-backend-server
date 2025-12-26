@@ -13,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
@@ -22,7 +21,6 @@ public class PaymentService {
      * 멱등성 검사
      * 결제상태가 COMPLETED/PENDING 상태인 경우 여기서 예외를 던져서 상위 로직 실행을 차단
      */
-    @Transactional(readOnly = true)
     public void checkForIdempotencyKey(String idempotencyKey) {
          // 멱동성 키로 결제레코드 존재하는지 확인
         paymentRepository.findByIdempotencyKey(idempotencyKey).ifPresent(existPayment -> {
@@ -43,7 +41,7 @@ public class PaymentService {
      * 결제 생성
      */
     @Transactional
-    public Payment createPayment(Long orderId, Long userId, String idempotencyKey, Integer price, String paymentTypeString) {
+    public Payment createPayment(Long orderId, Long userId, String idempotencyKey, Long price, String paymentTypeString) {
         PaymentType paymentType = PaymentType.valueOf(paymentTypeString);
 
         Payment payment = Payment.create(orderId, userId, idempotencyKey, price, paymentType);

@@ -14,7 +14,7 @@ public record ProductResponse(
     @Schema(description = "상품명")
     String productName,
     @Schema(description = "가격")
-    Integer price,
+    Long price,
     @Schema(description = "재고")
     Integer stock,
     @Schema(description = "카테고리코드")

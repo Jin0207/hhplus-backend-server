@@ -15,7 +15,7 @@ public record OrderCreateRequest(
     Long couponId,
     
     @Min(value = 0, message = "포인트는 0 이상이어야 합니다")
-    Integer pointToUse,
+    Long pointToUse,
     
     @NotNull(message = "결제 수단은 필수입니다")
     String paymentType,

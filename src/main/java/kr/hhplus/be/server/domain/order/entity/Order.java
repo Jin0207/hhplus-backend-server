@@ -13,9 +13,9 @@ public record Order(
     Long id,             // 식별자
     Long userId,         // 유저식별자
     Long couponId,       // 쿠폰식별자
-    Integer totalPrice,     // 총금액
-    Integer discountPrice,  // 할인금액
-    Integer finalPrice,     // 최종금액
+    Long totalPrice,     // 총금액
+    Long discountPrice,  // 할인금액
+    Long finalPrice,     // 최종금액
     OrderStatus orderStatus,     // 주문상태
     LocalDateTime crtDttm,  // 생성일
     LocalDateTime updDttm   // 수정일
@@ -27,9 +27,9 @@ public record Order(
     public static Order create(
             Long userId,
             Long couponId,
-            Integer totalPrice,
-            Integer discountPrice,
-            Integer finalPrice) {
+            Long totalPrice,
+            Long discountPrice,
+            Long finalPrice) {
         
         if (finalPrice < 0) {
             throw new BusinessException(ErrorCode.ORDER_FAILED, "생성");
@@ -74,8 +74,9 @@ public record Order(
      * 주문 취소
      */
     public Order cancel() {
-        if (this.orderStatus == OrderStatus.COMPLETED) {
-            throw new BusinessException(ErrorCode.ORDER_FAILED, "취소");
+        if (!canCancel()) {
+            throw new BusinessException(ErrorCode.ORDER_FAILED, 
+                "취소할 수 없는 주문입니다. 현재 상태: " + this.orderStatus);
         }
         
         return new Order(

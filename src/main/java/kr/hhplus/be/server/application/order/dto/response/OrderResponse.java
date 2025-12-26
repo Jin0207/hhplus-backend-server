@@ -14,9 +14,9 @@ public record OrderResponse(
     Long orderId,
     Long userId,
     String orderStatus,
-    Integer totalPrice,
-    Integer discountPrice,
-    Integer finalPrice,
+    Long totalPrice,
+    Long discountPrice,
+    Long finalPrice,
     PaymentInfo payment,
     List<OrderItemInfo> items,
     LocalDateTime createdAt
@@ -33,8 +33,8 @@ public record OrderResponse(
     public record OrderItemInfo(
         Long productId,
         Integer quantity,
-        Integer unitPrice,
-        Integer subtotal
+        Long unitPrice,
+        Long subtotal
     ) {}
     
     public static OrderResponse from(

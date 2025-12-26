@@ -15,7 +15,7 @@ public record Payment(
     Long  orderId,            // 주문식별자
     Long  userId,             // 유저식별자
     String idempotencyKey,   // 멱등성보장키
-    Integer price,              // 가격
+    Long price,              // 가격
     PaymentStatus status,       // 상태
     PaymentType paymentType,    // 유형
     String paymentGateway,      // 결제 게이트웨이(PG사)
@@ -31,7 +31,7 @@ public record Payment(
     /**
      * 결제 생성
      */
-    public static Payment create(Long orderId, Long userId, String idempotencyKey, Integer price, PaymentType paymentType) {
+    public static Payment create(Long orderId, Long userId, String idempotencyKey, Long price, PaymentType paymentType) {
         LocalDateTime now = LocalDateTime.now();
         
         return new Payment(

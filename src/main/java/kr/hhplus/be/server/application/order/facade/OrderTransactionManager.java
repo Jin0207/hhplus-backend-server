@@ -2,18 +2,21 @@ package kr.hhplus.be.server.application.order.facade;
 
 import java.util.List;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import kr.hhplus.be.server.application.coupon.service.CouponService;
 import kr.hhplus.be.server.application.order.dto.request.OrderCreateRequest;
 import kr.hhplus.be.server.application.order.dto.response.OrderAndPayment;
 import kr.hhplus.be.server.application.order.dto.response.OrderPrice;
+import kr.hhplus.be.server.application.order.dto.response.OrderResponse;
 import kr.hhplus.be.server.application.order.service.OrderDetailService;
 import kr.hhplus.be.server.application.order.service.OrderService;
+import kr.hhplus.be.server.application.payment.dto.response.PaymentResult;
 import kr.hhplus.be.server.application.payment.service.PaymentService;
+import kr.hhplus.be.server.application.point.service.PointService;
 import kr.hhplus.be.server.application.product.facade.StockManagerImpl;
-import kr.hhplus.be.server.application.user.service.UserService;
+import kr.hhplus.be.server.application.product.service.ProductService;
 import kr.hhplus.be.server.domain.order.entity.Order;
 import kr.hhplus.be.server.domain.order.entity.OrderDetail;
 import kr.hhplus.be.server.domain.payment.entity.Payment;
@@ -33,14 +36,15 @@ public class OrderTransactionManager {
     private final OrderDetailService orderDetailService; 
     private final PaymentService paymentService;
     private final OrderPriceCalculator priceCalculator;
-    private final UserService userService;
+    private final PointService pointService;
     private final CouponService couponService;
     private final StockManagerImpl stockManager;
+    private final ProductService productService;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 주문 초기화 (재고 차감, 포인트 차감)
      */
-    @Transactional
     public OrderAndPayment initializeOrder(Long userId, OrderCreateRequest request) {
         log.info("주문 초기화 시작: userId={}", userId);
         
@@ -59,12 +63,12 @@ public class OrderTransactionManager {
             }
 
             // 4. 포인트 차감
-            userService.usePoint(userId, orderPrice.finalPrice(), "주문 결제");
+            pointService.usePoint(userId, orderPrice.finalPrice(), "주문 결제");
             
             // 5. 주문 생성
             Order order = orderService.createOrder(userId, orderPrice);
 
-            // 6. 주문 상세 ID 매핑 및 저장
+            // 6. 주문 상세 저장
             List<OrderDetail> detailsWithOrderId = orderDetails.stream()
                 .map(detail -> detail.assignOrderId(order.id()))
                 .toList();
@@ -79,7 +83,7 @@ public class OrderTransactionManager {
                 userId,
                 request.idempotencyKey(),
                 orderPrice.finalPrice(),
-                request.paymentType()  // 포인트 결제
+                request.paymentType()
             );
             
             log.info("주문 초기화 완료: orderId={}, paymentId={}", order.id(), payment.id());
@@ -97,50 +101,49 @@ public class OrderTransactionManager {
     }
 
     /**
-     * 주문 롤백
-     * - 재고 복구 + Stock 이력 기록
-     * - 포인트 환불
+     *  주문 완료 처리
      */
-    @Transactional
-    public void rollbackOrder(OrderAndPayment orderData) {
-        log.info("주문 롤백 시작: orderId={}", orderData.order().id());
+    public OrderResponse completeOrder(
+            OrderAndPayment orderData, 
+            PaymentResult paymentResult) {
         
         try {
-            Long orderId = orderData.order().id();
-            Order order = orderData.order();
-            
-            // 1. 주문 취소
-            orderService.cancelOrder(orderId);
-            
-            // 2. 결제 실패 처리
-            paymentService.failPayment(
+            // 1. 결제 완료
+            Payment completedPayment = paymentService.completePayment(
                 orderData.payment().id(), 
-                "결제 처리 실패"
+                paymentResult.transactionId()
             );
             
-            // 3. 재고 복구
-            stockManager.restoreStock(orderData.orderDetails());
+            // 2. 주문 완료
+            Order completedOrder = orderService.completeOrder(orderData.order().id());
             
-            // 4. 쿠폰 복구 (사용했다면)
-            if (order.couponId() != null) {
-                couponService.restoreCoupon(order.userId(), order.couponId());
-                log.info("쿠폰 복구 완료: userId={}, couponId={}", 
-                    order.userId(), order.couponId());
-            }
+            // 3. 판매량 증가
+            updateProductSales(orderData.orderDetails());
             
-            // 5. 포인트 환불
-            Integer paidAmount = orderData.payment().price();
-            userService.chargePoint(
-                order.userId(), 
-                paidAmount, 
-                "주문 취소 - 포인트 환불 (orderId: " + orderId + ")"
+            // 4. 이벤트 발행 (트랜잭션 커밋 후)
+            eventPublisher.publishEvent(orderData);
+
+            log.info("주문 완료: orderId={}, paymentId={}", 
+                completedOrder.id(), completedPayment.id());
+            
+            return OrderResponse.from(
+                completedOrder, 
+                completedPayment, 
+                orderData.orderDetails()
             );
-            
-            log.info("주문 롤백 완료: orderId={}", orderId);
             
         } catch (Exception e) {
-            log.error("주문 롤백 실패: orderId={}", orderData.order().id(), e);
-            throw new BusinessException(ErrorCode.ORDER_FAILED, "롤백");
+            log.error("주문 완료 처리 실패", e);
+            throw new BusinessException(ErrorCode.ORDER_FAILED, "완료처리");
         }
+    }
+    
+    private void updateProductSales(List<OrderDetail> orderDetails) {
+        orderDetails.forEach(detail -> {
+            productService.increaseSalesQuantity(
+                detail.productId(), 
+                detail.quantity()
+            );
+        });
     }
 }

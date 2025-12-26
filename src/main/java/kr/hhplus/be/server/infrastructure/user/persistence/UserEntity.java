@@ -32,7 +32,7 @@ public class UserEntity extends BaseTimeEntity{
     private String password;        // PWD
 
     @Column(nullable = false)
-    private Integer point;          // 보유포인트
+    private Long point;          // 보유포인트
 
     /**
      * Domain -> Entity 변환

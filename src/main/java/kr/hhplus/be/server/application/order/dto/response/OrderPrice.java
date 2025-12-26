@@ -4,9 +4,9 @@ import lombok.Builder;
 
 @Builder
 public record OrderPrice(
-    Integer totalPrice,
-    Integer discountPrice,
+    Long totalPrice,
+    Long discountPrice,
     Long couponId,
-    Integer pointToUse,
-    Integer finalPrice
+    Long pointToUse,
+    Long finalPrice
 ) {}
