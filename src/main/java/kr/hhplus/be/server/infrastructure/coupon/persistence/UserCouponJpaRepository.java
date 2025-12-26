@@ -6,9 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import kr.hhplus.be.server.domain.coupon.entity.UserCoupon;
 import kr.hhplus.be.server.domain.coupon.enums.UserCouponStatus;
-import kr.hhplus.be.server.domain.user.entity.User;
 
 public interface UserCouponJpaRepository extends JpaRepository<UserCouponEntity, UserCouponId>{
     boolean existsByIdUserIdAndIdCouponId(Long userId, Long couponId);
