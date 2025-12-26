@@ -5,10 +5,7 @@ import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.support.PageableExecutionUtils;
 import org.springframework.stereotype.Repository;
-
-import com.querydsl.jpa.impl.JPAQuery;
 
 import kr.hhplus.be.server.domain.product.entity.Product;
 import kr.hhplus.be.server.domain.product.entity.ProductSearch;
@@ -19,25 +16,29 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ProductRepositoryImpl implements ProductRepository {
     private final ProductJpaRepository productJpaRepository;
+    
+    @Override
+    public Page<Product> findBySearch(ProductSearch search, Pageable pageable) {
+        return productJpaRepository.findBySearch(search, pageable).map(ProductEntity::toDomain);
+    }
+    
+    @Override
+    public List<Product> findPopularProducts(){
+        return productJpaRepository.findPopularProducts()
+                .stream()
+                .map(ProductEntity::toDomain)
+                .toList();
+    }
 
     @Override
     public Product save(Product product) {
-        throw new UnsupportedOperationException("인프라 계층 구현 시 실제 조회 로직을 작성하세요.");
+        ProductEntity entity = ProductEntity.from(product);
+        return productJpaRepository.save(entity).toDomain();
     }
 
     @Override
     public Optional<Product> findById(Long id) {
-        throw new UnsupportedOperationException("인프라 계층 구현 시 실제 조회 로직을 작성하세요.");
+        return productJpaRepository.findById(id).map(ProductEntity::toDomain);
     }
 
-    @Override
-    public Page<ProductEntity> findBySearch(ProductSearch search, Pageable pageable) {
-        throw new UnsupportedOperationException("인프라 계층 구현 시 실제 조회 로직을 작성하세요.");
-    }
-
-    
-    @Override
-    public List<Product> findPopularProducts() {
-        throw new UnsupportedOperationException("인프라 계층 구현 시 실제 조회 로직을 작성하세요.");
-    }
 }
