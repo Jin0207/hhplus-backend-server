@@ -15,7 +15,7 @@ import lombok.RequiredArgsConstructor;
 @Component
 @RequiredArgsConstructor
 public class OutboxMessageManager {
-    private final OutBoxMessageRepository outboxMessageRepository;
+    private final OutBoxMessageJpaRepository outBoxMessageJpaRepository;
     private final ObjectMapper objectMapper;
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -32,7 +32,7 @@ public class OutboxMessageManager {
                 .crtDttm(LocalDateTime.now())
                 .build();
                 
-            outboxMessageRepository.save(entity);
+            outBoxMessageJpaRepository.save(entity);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Outbox 실패", e);
         }
