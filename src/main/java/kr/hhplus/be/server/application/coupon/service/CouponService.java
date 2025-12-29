@@ -1,7 +1,6 @@
 package kr.hhplus.be.server.application.coupon.service;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -45,7 +44,7 @@ public class CouponService {
         // 1. Redis 중복 발급 체크
         Boolean alreadyIssued = redisTemplate.opsForValue()
             .setIfAbsent(issueKey, "1", Duration.ofDays(1));
-        
+
         if (Boolean.FALSE.equals(alreadyIssued)) {
             throw new BusinessException(ErrorCode.COUPON_ALREADY_ISSUED);
         }
@@ -53,11 +52,8 @@ public class CouponService {
         try {
             // 2. Redis 재고 차감
             Long remainingQuantity = redisTemplate.opsForValue().decrement(quantityKey);
-            
+
             if (remainingQuantity == null || remainingQuantity < 0) {
-                // 재고 부족 시 롤백
-                redisTemplate.opsForValue().increment(quantityKey);
-                redisTemplate.delete(issueKey);
                 throw new BusinessException(ErrorCode.COUPON_OUT_OF_STOCK);
             }
 
@@ -66,8 +62,6 @@ public class CouponService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.COUPON_NOT_FOUND));
 
             if (!coupon.canIssue()) {
-                redisTemplate.opsForValue().increment(quantityKey);
-                redisTemplate.delete(issueKey);
                 throw new BusinessException(ErrorCode.COUPON_NOT_AVAILABLE);
             }
 
@@ -77,18 +71,30 @@ public class CouponService {
             Coupon updatedCoupon = coupon.decreaseQuantity();
             couponRepository.save(updatedCoupon);
 
-            log.info("쿠폰 발급 성공: userId={}, couponId={}, remaining={}", 
+            log.info("쿠폰 발급 성공: userId={}, couponId={}, remaining={}",
                 userId, couponId, remainingQuantity);
 
             return UserCouponResponse.from(savedUserCoupon, coupon);
 
         } catch (BusinessException e) {
+            rollbackRedis(quantityKey, issueKey);
             throw e;
         } catch (Exception e) {
-            // 예외 발생 시 Redis 롤백
+            rollbackRedis(quantityKey, issueKey);
+            throw new BusinessException(ErrorCode.COUPON_ISSUE_FAILED, e);
+        }
+    }
+
+    /**
+     * Redis 롤백 (재고 복구 및 발급 키 삭제)
+     */
+    private void rollbackRedis(String quantityKey, String issueKey) {
+        try {
             redisTemplate.opsForValue().increment(quantityKey);
             redisTemplate.delete(issueKey);
-            throw new BusinessException(ErrorCode.COUPON_ISSUE_FAILED, e);
+            log.warn("Redis 롤백 완료: quantityKey={}, issueKey={}", quantityKey, issueKey);
+        } catch (Exception e) {
+            log.error("Redis 롤백 실패: quantityKey={}, issueKey={}", quantityKey, issueKey, e);
         }
     }
     /**

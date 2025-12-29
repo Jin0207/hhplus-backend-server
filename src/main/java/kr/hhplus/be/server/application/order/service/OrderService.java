@@ -21,8 +21,8 @@ public class OrderService {
 
     /**
      * 주문 생성
+     * OrderFacade의 트랜잭션에서 호출되므로 @Transactional 불필요
      */
-    @Transactional
     public Order createOrder(Long userId, OrderPrice price) {
         log.info("주문 생성 시작: userId={}", userId);
         Order order = Order.create(userId, price.couponId(), price.totalPrice(), price.discountPrice(), price.finalPrice());
@@ -39,8 +39,8 @@ public class OrderService {
 
     /**
      * 주문 완료
+     * OrderFacade의 트랜잭션에서 호출되므로 @Transactional 불필요
      */
-    @Transactional
     public Order completeOrder(Long orderId) {
         log.info("주문 완료 처리: orderId={}", orderId);
 
@@ -48,7 +48,7 @@ public class OrderService {
 
         if (order.orderStatus() != OrderStatus.PENDING) {
             throw new BusinessException(
-                ErrorCode.INVALID_VALUE, 
+                ErrorCode.INVALID_VALUE,
                 "주문상태:" + order.orderStatus()
             );
         }

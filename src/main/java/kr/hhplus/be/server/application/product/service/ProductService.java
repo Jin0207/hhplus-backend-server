@@ -38,42 +38,75 @@ public class ProductService {
     
     /**
      * 재고 차감 (주문 시)
+     * 비관적 락(Pessimistic Lock)을 사용하여 동시성 제어
+     * OrderFacade의 트랜잭션에서 호출되므로 @Transactional 불필요
      */
-    @Transactional
     public Product decreaseStock(Long productId, Integer quantity) {
-        Product product = getProduct(productId);
-        
+        // 비관적 락을 사용하여 조회 (동시성 제어)
+        Product product = productRepository.findByIdWithLock(productId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+
         // 주문 가능 여부 검증
         product.validateForOrder(quantity);
-        
+
         // 재고 차감
         Product updatedProduct = product.decreaseStock(quantity);
-        
+
         return productRepository.save(updatedProduct);
     }
 
     /**
      * 재고 증가
+     * 주문 취소 시에는 OrderCancellationService의 트랜잭션에서 호출
      */
     @Transactional
     public Product increaseStock(Long productId, Integer quantity) {
         Product product = getProduct(productId);
-        
-        // 재고 차감
+
+        // 재고 증가
         Product updatedProduct = product.increaseStock(quantity);
-        
+
         return productRepository.save(updatedProduct);
     }
 
     /**
      * 판매량 증가 (주문 완료 시)
+     * OrderFacade의 트랜잭션에서 호출되므로 @Transactional 불필요
      */
-    @Transactional
     public Product increaseSalesQuantity(Long productId, Integer quantity) {
         Product product = getProduct(productId);
         Product updatedProduct = product.increaseSalesQuantity(quantity);
-        
+
         return productRepository.save(updatedProduct);
+    }
+
+    /**
+     * 판매량 감소 (주문 취소 시)
+     */
+    @Transactional
+    public Product decreaseSalesQuantity(Long productId, Integer quantity) {
+        Product product = getProduct(productId);
+
+        // 판매량이 0 미만으로 내려가지 않도록 보호
+        Integer newSalesQuantity = Math.max(0, product.salesQuantity() - quantity);
+        Integer actualDecrease = product.salesQuantity() - newSalesQuantity;
+
+        if (actualDecrease > 0) {
+            Product updatedProduct = new Product(
+                product.id(),
+                product.productName(),
+                product.price(),
+                product.stock(),
+                product.category(),
+                product.status(),
+                newSalesQuantity,
+                product.crtDttm(),
+                java.time.LocalDateTime.now()
+            );
+            return productRepository.save(updatedProduct);
+        }
+
+        return product;
     }
     
     /**

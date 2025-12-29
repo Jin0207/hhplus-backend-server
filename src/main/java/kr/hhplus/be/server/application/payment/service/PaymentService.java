@@ -23,8 +23,10 @@ public class PaymentService {
      */
     public void checkForIdempotencyKey(String idempotencyKey) {
          // 멱동성 키로 결제레코드 존재하는지 확인
-        paymentRepository.findByIdempotencyKey(idempotencyKey).ifPresent(existPayment -> {
-            PaymentStatus currentStatus = existPayment.status();
+        var existingPayment = paymentRepository.findByIdempotencyKey(idempotencyKey);
+        if (existingPayment.isPresent()) {
+            Payment payment = existingPayment.get();
+            PaymentStatus currentStatus = payment.status();
 
             if(currentStatus == PaymentStatus.COMPLETED){
                 // 이미 처리된 결제
@@ -33,14 +35,13 @@ public class PaymentService {
                 // 기존 결제상태 '완료'가 아닌 경우 중복 요청으로 간주
                 throw new BusinessException(ErrorCode.DUPLICATE_PAYMENT_REQUEST);
             }
-
-        });
+        }
     }
 
     /**
      * 결제 생성
+     * OrderFacade의 트랜잭션에서 호출되므로 @Transactional 불필요
      */
-    @Transactional
     public Payment createPayment(Long orderId, Long userId, String idempotencyKey, Long price, String paymentTypeString) {
         PaymentType paymentType = PaymentType.valueOf(paymentTypeString);
 
@@ -56,11 +57,11 @@ public class PaymentService {
             .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_NOT_FOUND, paymentId));
     }
 
-    
+
     /**
      * 결제 완료
+     * OrderFacade의 트랜잭션에서 호출되므로 @Transactional 불필요
      */
-    @Transactional
     public Payment completePayment(Long paymentId, String transactionId) {
         Payment payment = getPayment(paymentId);
         Payment completedPayment = payment.complete(transactionId);
@@ -75,7 +76,7 @@ public class PaymentService {
         Payment payment = paymentRepository.findById(paymentId)
             .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_NOT_FOUND));
         
-        payment.fail(failReason); // 상태 FAILED, fail_reason 업데이트
-        return payment;
+        Payment failedPayment = payment.fail(failReason);
+        return paymentRepository.save(failedPayment);
     }
 }
