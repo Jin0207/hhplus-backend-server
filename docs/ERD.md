@@ -206,10 +206,14 @@ Table outbox_messages {
   event_type varchar(100) [not null, note: '이벤트 타입 (예: ORDER_COMPLETED)']
   payload text [not null, note: '전송 데이터 (JSON)']
   is_processed boolean [default: false, note: '처리 여부']
-  crt_dttm timestamp [default: `now()`, note: '메시지 생성 일시']
+  processedDttm timesamp [note: '처리 일시']
+  retryCount integer [default: 0, note: '처리 일시']
+  errorMessage varchar(100) [note: '에러메시지']
+  crt_dttm timesamp [default: `now()`, note: '메시지 생성 일시']
   
   Indexes {
-    (is_processed, crt_dttm) [name: 'idx_outbox_unprocessed']
+    (is_processed, crt_dttm) [name: 'idx_is_processed_crt_dttm']
+    (retry_count, is_processed) [name: 'idx_retry_count']
   }
 }
   ```
