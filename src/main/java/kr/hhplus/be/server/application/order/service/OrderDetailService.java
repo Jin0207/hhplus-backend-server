@@ -24,10 +24,29 @@ public class OrderDetailService {
     public List<OrderDetail> saveOrderDetails(List<OrderDetail> orderDetails) {
 
         List<OrderDetail> saved = orderDetailRepository.saveAll(orderDetails);
-        
+
         log.info("주문 상세 저장 완료: {} 건", saved.size());
-        
+
         return saved;
+    }
+
+    /**
+     * 주문 상세 단건 저장
+     */
+    @Transactional
+    public OrderDetail saveOrderDetail(OrderDetail orderDetail) {
+        OrderDetail saved = orderDetailRepository.save(orderDetail);
+        log.info("주문 상세 저장: orderDetailId={}", saved.id());
+        return saved;
+    }
+
+    /**
+     * 주문 ID로 주문 상세 목록 조회
+     */
+    public List<OrderDetail> getOrderDetails(Long orderId) {
+        List<OrderDetail> orderDetails = orderDetailRepository.findByOrderId(orderId);
+        log.info("주문 상세 조회: orderId={}, count={}", orderId, orderDetails.size());
+        return orderDetails;
     }
 
 }
