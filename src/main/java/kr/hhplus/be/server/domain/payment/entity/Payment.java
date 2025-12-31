@@ -14,7 +14,8 @@ public record Payment(
     Long  id,                 // 식별자
     Long  orderId,            // 주문식별자
     Long  userId,             // 유저식별자
-    Integer price,              // 가격
+    String idempotencyKey,   // 멱등성보장키
+    Long price,              // 가격
     PaymentStatus status,       // 상태
     PaymentType paymentType,    // 유형
     String paymentGateway,      // 결제 게이트웨이(PG사)
@@ -30,13 +31,14 @@ public record Payment(
     /**
      * 결제 생성
      */
-    public static Payment create(Long orderId, Long userId, Integer price, PaymentType paymentType) {
+    public static Payment create(Long orderId, Long userId, String idempotencyKey, Long price, PaymentType paymentType) {
         LocalDateTime now = LocalDateTime.now();
         
         return new Payment(
             null,
             orderId,
             userId,
+            idempotencyKey,
             price,
             PaymentStatus.PENDING,
             paymentType,
@@ -55,17 +57,18 @@ public record Payment(
     /**
      * 결제 완료
      */
-    public Payment complete(Payment payment, String trancsactionId) {
+    public Payment complete(String transactionId) {
         if (this.status != PaymentStatus.PENDING) {
             throw new BusinessException(ErrorCode.PAYMENT_ALREADY_PROCESSED);
         }
-        
+
         LocalDateTime now = LocalDateTime.now();
-        
+
         return new Payment(
             this.id,
             this.orderId,
             this.userId,
+            this.idempotencyKey,
             this.price,
             PaymentStatus.COMPLETED,
             this.paymentType,
@@ -75,7 +78,60 @@ public record Payment(
             this.requestDttm,
             now,
             this.externalSync,
-            (this.externalSync? now : null),
+            this.syncedDttm,
+            this.crtDttm,
+            now
+        );
+    }
+
+    /**
+     * 외부 시스템 동기화 완료 처리
+     */
+    public Payment markAsSynced() {
+        LocalDateTime now = LocalDateTime.now();
+
+        return new Payment(
+            this.id,
+            this.orderId,
+            this.userId,
+            this.idempotencyKey,
+            this.price,
+            this.status,
+            this.paymentType,
+            this.paymentGateway,
+            this.transactionId,
+            this.failReason,
+            this.requestDttm,
+            this.successDttm,
+            true,
+            now,
+            this.crtDttm,
+            now
+        );
+    }
+
+    /**
+     * 결제 실패
+     */
+    public Payment fail(String failReason) {
+        
+        LocalDateTime now = LocalDateTime.now();
+        
+        return new Payment(
+            this.id,
+            this.orderId,
+            this.userId,
+            this.idempotencyKey,
+            this.price,
+            PaymentStatus.FAILED,
+            this.paymentType,
+            this.paymentGateway,
+            this.transactionId,
+            failReason,
+            this.requestDttm,
+            null,
+            this.externalSync,
+            null,
             this.crtDttm,
             now
         );

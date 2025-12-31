@@ -39,11 +39,11 @@ public class CouponEntity extends BaseTimeEntity{
     private CouponType type;
 
     @Column(name = "discount_value", nullable = false)
-    private Integer discountValue;
+    private Long discountValue;
 
     @Column(name = "min_order_price", nullable = false)
     @Builder.Default
-    private Integer minOrderPrice = 0;
+    private Long minOrderPrice = 0L;
 
     @Column(name = "valid_from")
     private LocalDateTime validFrom;

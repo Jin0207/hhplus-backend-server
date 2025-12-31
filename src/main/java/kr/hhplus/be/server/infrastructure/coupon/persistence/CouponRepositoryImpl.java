@@ -13,26 +13,25 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class CouponRepositoryImpl implements CouponRepository{
     
+    private final CouponJpaRepository couponJpaRepository;
+
     @Override
     public List<Coupon> findAllById(Iterable<Long> ids) {
-        // TODO Auto-generated method stub
-        return null;
+        return couponJpaRepository.findAllById(ids).stream().map(CouponEntity::toDomain).toList();
     }
     @Override
     public Optional<Coupon> findById(Long id) {
-        // TODO Auto-generated method stub
-        return Optional.empty();
+        return couponJpaRepository.findById(id).map(CouponEntity::toDomain);
     }
 
     @Override
     public Optional<Coupon> findByIdWithLock(Long id) {
-        // TODO Auto-generated method stub
-        return Optional.empty();
+        return couponJpaRepository.findByIdWithLock(id).map(CouponEntity::toDomain);
     }
 
     @Override
     public Coupon save(Coupon coupon) {
-        // TODO Auto-generated method stub
-        return null;
+        CouponEntity entity = CouponEntity.from(coupon);
+        return couponJpaRepository.save(entity).toDomain();
     }
 }

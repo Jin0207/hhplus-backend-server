@@ -171,6 +171,7 @@ Table payments {
   id integer [primary key, increment, note: '식별자']
   order_id integer [not null, ref: > orders.id, note: '주문ID FK']
   user_id integer [not null, ref: > users.id, note: '유저ID FK']
+  idempotency_key varchar(100) [not null, unique, note: '멱등성 보장 키']
   price integer [not null, note: '결제 금액']
   status varchar(20) [not null, default: 'PENDING', note: 'PENDING:대기, COMPLETED:완료, CANCELED:취소, FAILED:실패']
   payment_type varchar(20) [note: '결제 수단 (CARD, BANK_TRANSFER, POINT 등)']
@@ -189,8 +190,30 @@ Table payments {
     user_id [name: 'idx_user_id']
     status [name: 'idx_status']
     transaction_id [name: 'idx_transaction_id']
+    idempotency_key [name: 'uk_idempotency_key']
     (user_id, status) [name: 'idx_user_status', note: '사용자별 결제 상태 조회']
     external_sync [name: 'idx_external_sync', note: '미동기 건 조회용']
+  }
+}
+
+// ============================================
+// OutBox
+// ============================================
+Table outbox_messages {
+  id bigint [primary key, increment, note: '식별자']
+  aggregate_type varchar(50) [not null, note: '집계 타입 (예: ORDER)']
+  aggregate_id bigint [not null, note: '집계 식별자 (주문 ID)']
+  event_type varchar(100) [not null, note: '이벤트 타입 (예: ORDER_COMPLETED)']
+  payload text [not null, note: '전송 데이터 (JSON)']
+  is_processed boolean [default: false, note: '처리 여부']
+  processedDttm timesamp [note: '처리 일시']
+  retryCount integer [default: 0, note: '처리 일시']
+  errorMessage varchar(100) [note: '에러메시지']
+  crt_dttm timesamp [default: `now()`, note: '메시지 생성 일시']
+  
+  Indexes {
+    (is_processed, crt_dttm) [name: 'idx_is_processed_crt_dttm']
+    (retry_count, is_processed) [name: 'idx_retry_count']
   }
 }
   ```

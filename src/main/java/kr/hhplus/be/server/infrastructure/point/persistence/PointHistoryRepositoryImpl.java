@@ -18,14 +18,13 @@ public class PointHistoryRepositoryImpl implements PointHistoryRepository {
     @Override
     public PointHistory save(PointHistory pointHistory) {
         PointHistoryEntity entity = PointHistoryEntity.from(pointHistory);
-        PointHistoryEntity saved = jpaRepository.save(entity);
-        return saved.toDomain();
+        return jpaRepository.save(entity).toDomain();
     }
 
     @Override
     public List<PointHistory> findByUserId(Long userId) {
         return jpaRepository.findByUserId(userId).stream()
             .map(PointHistoryEntity::toDomain)
-            .collect(Collectors.toList());
+            .toList();
     }
 }

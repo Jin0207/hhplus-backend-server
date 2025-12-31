@@ -9,7 +9,7 @@ import kr.hhplus.be.server.domain.point.enums.PointType;
 public record PointHistory(
     Long id,             // 식별자
     Long userId,         // 사용자 식별자
-    Integer point,          // 포인트
+    Long point,          // 포인트
     PointType type,         // 타입(충전/사용)
     String comment,         // 비고
     LocalDateTime crtDttm   // 생성일
@@ -17,7 +17,7 @@ public record PointHistory(
     /**
      * 포인트 충전/사용 이력 생성
      */
-    public static PointHistory insert(Long userId, Integer amount, PointType pointType, String comment) {
+    public static PointHistory insert(Long userId, Long amount, PointType pointType, String comment) {
         return new PointHistory(
             null,
             userId,

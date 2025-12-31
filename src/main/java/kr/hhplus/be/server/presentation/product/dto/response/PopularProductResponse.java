@@ -13,7 +13,7 @@ public record PopularProductResponse(
     String productName,
     
     @Schema(description = "가격", example = "1500000")
-    Integer price,
+    Long price,
     
     @Schema(description = "재고수량", example = "50")
     Integer stock,

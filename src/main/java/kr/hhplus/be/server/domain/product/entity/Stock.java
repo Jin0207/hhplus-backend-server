@@ -14,4 +14,18 @@ public record Stock(
     StockType stockType,           // 타입
     String reason,              // 입출고 사유
     LocalDateTime crtDttm       // 생성일
-) {}
+) {
+    /**
+     * 출고
+     */
+    public static Stock createOut(Long productId, Integer quatity, String reason){
+        return new Stock(null, productId, quatity, StockType.OUT, reason, LocalDateTime.now());
+    }
+    /**
+     * 입고
+     */
+    public static Stock createIn(Long productId, Integer quatity, String reason){
+        return new Stock(null, productId, quatity, StockType.IN, reason, LocalDateTime.now());
+    }
+
+}

@@ -14,7 +14,7 @@ public record PointHistoryResponse(
     @Schema(description="사용자 ID")
     Long userId,
     @Schema(description="포인트")
-    Integer point,
+    Long point,
     @Schema(description="포인트타입코드")
     String type,
     @Schema(description="포인트타입")

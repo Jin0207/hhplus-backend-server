@@ -7,4 +7,5 @@ import kr.hhplus.be.server.domain.order.entity.OrderDetail;
 public interface OrderDetailRepository {
     OrderDetail save(OrderDetail orderDetail);
     List<OrderDetail> saveAll(List<OrderDetail> orderDetails);
+    List<OrderDetail> findByOrderId(Long orderId);
 }

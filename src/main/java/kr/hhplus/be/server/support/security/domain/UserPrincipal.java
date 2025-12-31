@@ -23,7 +23,7 @@ public class UserPrincipal implements UserDetails {
     private final Long userId;
     private final String accountId;
     private final String password;
-    private final Integer point;
+    private final Long point;
 
     public static UserPrincipal from(User user) {
         return UserPrincipal.builder()

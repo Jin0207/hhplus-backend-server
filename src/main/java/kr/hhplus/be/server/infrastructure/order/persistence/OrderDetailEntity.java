@@ -8,6 +8,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import kr.hhplus.be.server.domain.order.entity.OrderDetail;
 import kr.hhplus.be.server.domain.order.enums.OrderStatus;
 import kr.hhplus.be.server.infrastructure.common.BaseTimeEntity;
 import lombok.AccessLevel;
@@ -41,8 +42,32 @@ public class OrderDetailEntity extends BaseTimeEntity{
     private Integer quantity;
 
     @Column(name = "unit_price", nullable = false)
-    private Integer unitPrice;
+    private Long unitPrice;
 
     @Column(nullable = false)
-    private Integer subtotal;
+    private Long subtotal;
+
+    public static OrderDetailEntity from(OrderDetail orderDetail) {
+        return OrderDetailEntity.builder()
+            .id(orderDetail.id())
+            .orderId(orderDetail.orderId())
+            .productId(orderDetail.productId())
+            .quantity(orderDetail.quantity())
+            .unitPrice(orderDetail.unitPrice())
+            .subtotal(orderDetail.subtotal())
+            .build();
+    }
+
+    public OrderDetail toDomain() {
+        return new OrderDetail(
+            this.id,
+            this.orderId,
+            this.productId,
+            this.quantity,
+            this.unitPrice,
+            this.subtotal,
+            getCrtDttm(),
+            getUpdDttm()
+        );
+    }
 }

@@ -1,0 +1,52 @@
+spring:
+  config:
+    activate:
+      on-profile: test
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/hhplus?characterEncoding=UTF-8&serverTimezone=UTC&rewriteBatchedStatements=true
+    username: application
+    password: application
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      validation-timeout: 5000
+      leak-detection-threshold: 60000
+      connection-test-query: SELECT 1
+
+  jpa:
+    hibernate:
+      ddl-auto: create  # 테스트 시작 시 스키마 생성, 종료 시 삭제하지 않음
+    show-sql: true
+    properties:
+      hibernate.format_sql: true
+      hibernate.timezone.default_storage: NORMALIZE_UTC
+      hibernate.jdbc.time_zone: UTC
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+      lettuce:
+        shutdown-timeout: 200ms
+
+# JWT 설정 (테스트용)
+jwt:
+  secret: test-secret-key-for-integration-test-minimum-256-bits-long-secret-key-value
+  expiration: 3600000
+
+# Outbox 패턴 설정
+outbox:
+  batch-size: 100
+  max-retry: 3
+  cleanup-days: 7
+  schedule:
+    publish-delay: 1000
+    publish-initial-delay: 5000
+    cleanup-cron: "0 0 3 * * *"
+    dlq-check-cron: "0 0 * * * *"

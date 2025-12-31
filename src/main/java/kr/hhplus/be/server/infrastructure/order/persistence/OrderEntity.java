@@ -6,8 +6,8 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import kr.hhplus.be.server.domain.order.entity.Order;
 import kr.hhplus.be.server.domain.order.enums.OrderStatus;
 import kr.hhplus.be.server.infrastructure.common.BaseTimeEntity;
 import lombok.AccessLevel;
@@ -35,16 +35,48 @@ public class OrderEntity extends BaseTimeEntity{
     private Long couponId;
 
     @Column(name = "total_price", nullable = false)
-    private Integer totalPrice;
+    private Long totalPrice;
 
     @Column(name = "discount_price", nullable = false)
     @Builder.Default
-    private Integer discountPrice = 0;
+    private Long discountPrice = 0L;
 
     @Column(name = "final_price", nullable = false)
-    private Integer finalPrice;
+    private Long finalPrice;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "order_status", nullable = false, length = 20)
     private OrderStatus orderStatus;
+
+    /**
+     * Entity -> Domain 변환
+     */
+    public Order toDomain() {
+        return new Order(
+            this.id,
+            this.userId,
+            this.couponId,
+            this.totalPrice,
+            this.discountPrice,
+            this.finalPrice,
+            this.orderStatus,
+            this.getCrtDttm(),
+            this.getUpdDttm()
+        );
+    }
+
+    /**
+     * Domain -> Entity 변환
+     */
+    public static OrderEntity from(Order order) {
+        return OrderEntity.builder()
+            .id(order.id())
+            .userId(order.userId())
+            .couponId(order.couponId())
+            .totalPrice(order.totalPrice())
+            .discountPrice(order.discountPrice())
+            .finalPrice(order.finalPrice())
+            .orderStatus(order.orderStatus())
+            .build();
+    }
 }

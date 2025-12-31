@@ -12,7 +12,7 @@ public record User(
     Long id,             // 식별자
     String accountId,       // 유저ID
     String password,        // PWD
-    Integer point,          // 보유포인트
+    Long point,          // 보유포인트
     LocalDateTime crtDttm,  // 생성일
     LocalDateTime updDttm   // 수정일
 ) {
@@ -24,17 +24,17 @@ public record User(
         validatePassword(password);
         
         LocalDateTime now = LocalDateTime.now();
-        return new User(null, accountId, password, 0, now, null);
+        return new User(null, accountId, password, 0L, now, null);
     }
 
     /*
      * 포인트를 충전한다.
      */
-    public User chargePoint(Integer amount) {
+    public User chargePoint(Long amount) {
         validatePointAmount(amount);
 
         //최대보유포인트 '1백만'포인트
-        if(point+amount > 1_000_000){
+        if(point+amount > 1_000_000L){
             throw new BusinessException(ErrorCode.POINT_BALANCE_MAX);
         }
 
@@ -45,7 +45,7 @@ public record User(
     /*
      * 포인트를 사용한다.
      */
-    public User usePoint(Integer amount) {
+    public User usePoint(Long amount) {
         validatePointAmount(amount);
 
         if (this.point < amount) {
@@ -69,8 +69,8 @@ public record User(
     /* 
     * 포인트 금액을 검증한다.
     */
-    private static void validatePointAmount(Integer amount) {
-        if (amount == null || amount <= 0) {
+    private static void validatePointAmount(Long amount) {
+        if (amount == null || amount <= 0L) {
             throw new BusinessException(ErrorCode.CHARGE_LESS_THAN_ZERO);
         }
     }
