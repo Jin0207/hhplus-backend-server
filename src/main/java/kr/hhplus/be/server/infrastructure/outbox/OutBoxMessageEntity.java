@@ -7,17 +7,11 @@ import org.hibernate.type.SqlTypes;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Index;
 import jakarta.persistence.Table;
-import kr.hhplus.be.server.domain.order.enums.OrderStatus;
 import kr.hhplus.be.server.domain.outbox.entity.OutBoxMessage;
-import kr.hhplus.be.server.domain.payment.enums.PaymentStatus;
-import kr.hhplus.be.server.infrastructure.common.BaseTimeEntity;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -30,6 +24,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
+@Getter
 public class OutBoxMessageEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -45,12 +40,22 @@ public class OutBoxMessageEntity {
     private String eventType;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "payload", columnDefinition = "jsonb", nullable = false)
+    @Column(name = "payload", columnDefinition = "json", nullable = false)
     private String payload; 
 
     @Column(name = "is_processed", nullable = false)
     @Builder.Default
     private boolean isProcessed = false;
+
+    @Column(name = "processed_dttm")
+    private LocalDateTime processedDttm;
+    
+    @Column(name = "retry_count", nullable = false)
+    @Builder.Default
+    private Integer retryCount = 0;
+
+    @Column(name = "error_message", length = 1000)
+    private String errorMessage;
 
     @Column(name = "crt_dttm", nullable = false, updatable = false)
     private LocalDateTime crtDttm;
@@ -63,16 +68,38 @@ public class OutBoxMessageEntity {
     }
 
     /**
-     * Domain -> Entity
+     * Domain → Entity
      */
     public static OutBoxMessageEntity from(OutBoxMessage domain) {
         return OutBoxMessageEntity.builder()
-                .aggregateType(domain.aggregateType())
-                .aggregateId(domain.aggregateId())
-                .eventType(domain.eventType())
-                .payload(domain.payload())
-                .isProcessed(domain.isProcessed())
-                .crtDttm(domain.crtDttm() != null ? domain.crtDttm() : LocalDateTime.now())
-                .build();
+            .id(domain.id())
+            .aggregateType(domain.aggregateType())
+            .aggregateId(domain.aggregateId())
+            .eventType(domain.eventType())
+            .payload(domain.payload())
+            .isProcessed(domain.isProcessed())
+            .processedDttm(domain.processedDttm())
+            .retryCount(domain.retryCount() != null ? domain.retryCount() : 0)
+            .errorMessage(domain.errorMessage())
+            .crtDttm(domain.crtDttm() != null ? domain.crtDttm() : LocalDateTime.now())
+            .build();
+    }
+
+    /**
+     * Entity → Domain
+     */
+    public OutBoxMessage toDomain() {
+        return new OutBoxMessage(
+            this.id,
+            this.aggregateType,
+            this.aggregateId,
+            this.eventType,
+            this.payload,
+            this.isProcessed,
+            this.processedDttm,
+            this.retryCount,
+            this.errorMessage,
+            this.crtDttm
+        );
     }
 }
