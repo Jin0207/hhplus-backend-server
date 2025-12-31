@@ -78,10 +78,10 @@ class CouponServiceTest {
     void 쿠폰_발급_성공() {
         // Given
         UserCoupon savedUserCoupon = UserCoupon.issue(TEST_USER_ID, TEST_COUPON_ID, activeCoupon.validTo());
-        
+
         when(valueOperations.setIfAbsent(anyString(), eq("1"), any(Duration.class))).thenReturn(true);
+        when(couponRepository.findByIdWithLock(TEST_COUPON_ID)).thenReturn(Optional.of(activeCoupon));
         when(valueOperations.decrement(anyString())).thenReturn(9L);
-        when(couponRepository.findById(TEST_COUPON_ID)).thenReturn(Optional.of(activeCoupon));
         when(userCouponRepository.save(any(UserCoupon.class))).thenReturn(savedUserCoupon);
         when(couponRepository.save(any(Coupon.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -94,8 +94,8 @@ class CouponServiceTest {
 
         // 메서드 호출 순서 및 횟수 검증
         verify(valueOperations, times(1)).setIfAbsent(contains("issue"), eq("1"), any());
+        verify(couponRepository, times(1)).findByIdWithLock(TEST_COUPON_ID);
         verify(valueOperations, times(1)).decrement(contains("quantity"));
-        verify(couponRepository, times(1)).findById(TEST_COUPON_ID); // Lock 버전이 아님을 확인
         verify(userCouponRepository, times(1)).save(any(UserCoupon.class));
         verify(couponRepository, times(1)).save(argThat(c -> c.availableQuantity() == 9));
     }
@@ -105,6 +105,7 @@ class CouponServiceTest {
     void 재고_부족_실패_및_롤백_검증() {
         // Given
         when(valueOperations.setIfAbsent(anyString(), anyString(), any())).thenReturn(true);
+        when(couponRepository.findByIdWithLock(TEST_COUPON_ID)).thenReturn(Optional.of(activeCoupon));
         when(valueOperations.decrement(anyString())).thenReturn(-1L); // 재고 소진 상태
 
         // When & Then
@@ -114,9 +115,11 @@ class CouponServiceTest {
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.COUPON_OUT_OF_STOCK);
 
         // [증빙 포인트 3] 롤백 로직 작동 여부 확인
-        verify(valueOperations).increment(anyString()); // 차감했던 재고 복구
-        verify(redisTemplate).delete(anyString());       // 중복체크 키 삭제
-        verify(couponRepository, never()).findById(anyLong()); // DB 조회조차 안했음을 증명
+        // COUPON_OUT_OF_STOCK인 경우 increment는 호출되지 않음 (실제 코드 line 67-69 참고)
+        verify(valueOperations, never()).increment(anyString()); // 재고 소진은 정상 실패이므로 복구하지 않음
+        verify(redisTemplate).delete(anyString());       // 중복체크 키만 삭제
+        verify(couponRepository).findByIdWithLock(TEST_COUPON_ID); // DB 조회는 이루어짐
+        verify(userCouponRepository, never()).save(any()); // 쿠폰 저장은 안 됨
     }
 
     @Test
@@ -124,15 +127,14 @@ class CouponServiceTest {
     void 쿠폰_상태_이상_실패_및_롤백_검증() {
         // Given
         when(valueOperations.setIfAbsent(anyString(), anyString(), any())).thenReturn(true);
-        when(valueOperations.decrement(anyString())).thenReturn(5L);
 
         // INACTIVE 상태의 쿠폰 Mocking
         Coupon inactiveCoupon = new Coupon(
             TEST_COUPON_ID, "비활성 쿠폰", CouponType.AMOUNT, 5000L, 10000L,
-            activeCoupon.validFrom(), activeCoupon.validTo(), 100, 10, CouponStatus.INACTIVE, 
+            activeCoupon.validFrom(), activeCoupon.validTo(), 100, 10, CouponStatus.INACTIVE,
             activeCoupon.crtDttm(), activeCoupon.updDttm()
         );
-        when(couponRepository.findById(TEST_COUPON_ID)).thenReturn(Optional.of(inactiveCoupon));
+        when(couponRepository.findByIdWithLock(TEST_COUPON_ID)).thenReturn(Optional.of(inactiveCoupon));
 
         // When & Then
         BusinessException exception = assertThrows(BusinessException.class,
@@ -140,9 +142,11 @@ class CouponServiceTest {
 
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.COUPON_NOT_AVAILABLE);
 
-        // DB 조회 이후 예외 발생 시에도 Redis 정합성이 맞춰지는지 확인
-        verify(valueOperations).increment(anyString());
-        verify(redisTemplate).delete(anyString());
+        // DB 조회 이후 예외 발생 시 Redis 정합성 확인
+        // COUPON_NOT_AVAILABLE은 상태 체크 실패이므로 Redis 차감 전에 발생 (실제 코드 line 57-60)
+        verify(valueOperations, never()).decrement(anyString()); // 재고 차감 전에 실패
+        verify(valueOperations, never()).increment(anyString()); // 차감하지 않았으므로 복구도 없음
+        verify(redisTemplate).delete(anyString()); // 중복체크 키만 삭제
         verify(userCouponRepository, never()).save(any()); // 쿠폰 저장은 수행되지 않음
     }
 }

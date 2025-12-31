@@ -2,7 +2,6 @@ package kr.hhplus.be.server.domain.product;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.Assert.assertThat;
 
 import java.time.LocalDateTime;
 

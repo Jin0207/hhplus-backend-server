@@ -238,7 +238,7 @@ public class ProductServiceTest {
         Product mockProduct = mockProductList.get(0);
         Product decreasedProduct = mockProduct.decreaseStock(quantity);
         
-        when(productRepository.findById(productId))
+        when(productRepository.findByIdWithLock(productId))
             .thenReturn(Optional.of(mockProduct));
         when(productRepository.save(any(Product.class)))
             .thenReturn(decreasedProduct);
@@ -249,8 +249,8 @@ public class ProductServiceTest {
         // then
         assertNotNull(result);
         assertEquals(7, result.stock()); // 10 - 3 = 7
-        
-        verify(productRepository, times(1)).findById(productId);
+
+        verify(productRepository, times(1)).findByIdWithLock(productId);
         verify(productRepository, times(1)).save(any(Product.class));
     }
 
@@ -261,16 +261,16 @@ public class ProductServiceTest {
         Long productId = 1L;
         Integer quantity = 20; // 현재 재고(10)보다 많음
         Product mockProduct = mockProductList.get(0);
-        
-        when(productRepository.findById(productId))
+
+        when(productRepository.findByIdWithLock(productId))
             .thenReturn(Optional.of(mockProduct));
 
         // when & then
-        assertThrows(BusinessException.class, () -> 
+        assertThrows(BusinessException.class, () ->
             productService.decreaseStock(productId, quantity)
         );
-        
-        verify(productRepository, times(1)).findById(productId);
+
+        verify(productRepository, times(1)).findByIdWithLock(productId);
         verify(productRepository, never()).save(any(Product.class));
     }
 
