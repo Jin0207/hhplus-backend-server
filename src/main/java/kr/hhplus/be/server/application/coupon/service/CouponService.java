@@ -49,25 +49,31 @@ public class CouponService {
             throw new BusinessException(ErrorCode.COUPON_ALREADY_ISSUED);
         }
 
+        // 2. 쿠폰 조회 (비관적 락 사용 - 동시성 제어)
+        Coupon coupon = couponRepository.findByIdWithLock(couponId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.COUPON_NOT_FOUND));
+
+        // 유효기간 및 상태 체크 (수량은 Redis에서 체크)
+        if (!coupon.isActive()) {
+            redisTemplate.delete(issueKey);
+            throw new BusinessException(ErrorCode.COUPON_NOT_AVAILABLE);
+        }
+
         try {
-            // 2. Redis 재고 차감
+            // 3. Redis 재고 차감
             Long remainingQuantity = redisTemplate.opsForValue().decrement(quantityKey);
 
             if (remainingQuantity == null || remainingQuantity < 0) {
+                // 재고 부족은 정상적인 실패이므로 issueKey만 삭제 (수량은 롤백하지 않음)
+                redisTemplate.delete(issueKey);
                 throw new BusinessException(ErrorCode.COUPON_OUT_OF_STOCK);
             }
 
-            // 3. DB 처리
-            Coupon coupon = couponRepository.findById(couponId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.COUPON_NOT_FOUND));
-
-            if (!coupon.canIssue()) {
-                throw new BusinessException(ErrorCode.COUPON_NOT_AVAILABLE);
-            }
-
+            // 4. DB 처리 (UserCoupon 발급 및 쿠폰 수량 차감)
             UserCoupon userCoupon = UserCoupon.issue(userId, couponId, coupon.validTo());
             UserCoupon savedUserCoupon = userCouponRepository.save(userCoupon);
 
+            // DB 쿠폰 수량 차감 (비관적 락으로 동시성 제어)
             Coupon updatedCoupon = coupon.decreaseQuantity();
             couponRepository.save(updatedCoupon);
 
@@ -77,7 +83,9 @@ public class CouponService {
             return UserCouponResponse.from(savedUserCoupon, coupon);
 
         } catch (BusinessException e) {
-            rollbackRedis(quantityKey, issueKey);
+            if (e.getErrorCode() != ErrorCode.COUPON_OUT_OF_STOCK) {
+                rollbackRedis(quantityKey, issueKey);
+            }
             throw e;
         } catch (Exception e) {
             rollbackRedis(quantityKey, issueKey);

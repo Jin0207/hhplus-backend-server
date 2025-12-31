@@ -57,13 +57,13 @@ public record Payment(
     /**
      * 결제 완료
      */
-    public Payment complete(String trancsactionId) {
+    public Payment complete(String transactionId) {
         if (this.status != PaymentStatus.PENDING) {
             throw new BusinessException(ErrorCode.PAYMENT_ALREADY_PROCESSED);
         }
-        
+
         LocalDateTime now = LocalDateTime.now();
-        
+
         return new Payment(
             this.id,
             this.orderId,
@@ -78,7 +78,33 @@ public record Payment(
             this.requestDttm,
             now,
             this.externalSync,
-            (this.externalSync? now : null),
+            this.syncedDttm,
+            this.crtDttm,
+            now
+        );
+    }
+
+    /**
+     * 외부 시스템 동기화 완료 처리
+     */
+    public Payment markAsSynced() {
+        LocalDateTime now = LocalDateTime.now();
+
+        return new Payment(
+            this.id,
+            this.orderId,
+            this.userId,
+            this.idempotencyKey,
+            this.price,
+            this.status,
+            this.paymentType,
+            this.paymentGateway,
+            this.transactionId,
+            this.failReason,
+            this.requestDttm,
+            this.successDttm,
+            true,
+            now,
             this.crtDttm,
             now
         );

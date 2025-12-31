@@ -36,6 +36,16 @@ public record Coupon(
     }
 
     /*
+    *   쿠폰 활성 상태 및 유효기간 확인 (수량 제외)
+    */
+    public boolean isActive(){
+        LocalDateTime now = LocalDateTime.now();
+        return this.status == CouponStatus.ACTIVE
+            && now.isAfter(this.validFrom)
+            && now.isBefore(this.validTo);
+    }
+
+    /*
     *   쿠폰 수량차감
     */
     public Coupon decreaseQuantity(){

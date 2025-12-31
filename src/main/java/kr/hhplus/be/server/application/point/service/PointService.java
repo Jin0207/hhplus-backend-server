@@ -50,15 +50,23 @@ private final UserService userService;
     }
 
     /**
-     * 포인트 환불
+     * 포인트 환불 (comment 없음)
      * - 주문 프로세스에서만 호출됨으로 @Transactional 제거
      */
     public User refundPoint(Long userId, Long amount) {
+        return refundPoint(userId, amount, "환불");
+    }
+
+    /**
+     * 포인트 환불 (comment 포함)
+     * - 주문 취소 시 사용
+     */
+    public User refundPoint(Long userId, Long amount, String comment) {
         User user = userService.getUser(userId);
         User refundedUser = user.chargePoint(amount);
-        
-        recordPointHistory(userId, amount, PointType.CHARGE, "환불");
-        
+
+        recordPointHistory(userId, amount, PointType.CHARGE, comment);
+
         return userService.save(refundedUser);
     }
 

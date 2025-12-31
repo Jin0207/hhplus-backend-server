@@ -3,6 +3,7 @@ package kr.hhplus.be.server.application.product.facade;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import kr.hhplus.be.server.application.order.dto.request.OrderCreateRequest;
 import kr.hhplus.be.server.application.order.facade.interfaces.StockManager;
@@ -10,13 +11,8 @@ import kr.hhplus.be.server.application.product.service.ProductService;
 import kr.hhplus.be.server.application.product.service.StockService;
 import kr.hhplus.be.server.domain.order.entity.OrderDetail;
 import kr.hhplus.be.server.domain.product.entity.Product;
-import kr.hhplus.be.server.support.exception.BusinessException;
-import kr.hhplus.be.server.support.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 
 
 /**
@@ -61,7 +57,6 @@ public class StockManagerImpl implements StockManager{
      * 재고 차감 이력 기록
      */
     @Override
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordStockOut(Long orderId, List<OrderDetail> orderDetails, String reason) {
         log.info("재고 차감 이력 기록: orderId={}", orderId);
         stockService.recordOut(orderId, orderDetails, reason);

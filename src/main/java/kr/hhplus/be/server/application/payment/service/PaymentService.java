@@ -1,5 +1,8 @@
 package kr.hhplus.be.server.application.payment.service;
 
+import java.time.Duration;
+
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,13 +19,37 @@ import lombok.RequiredArgsConstructor;
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
+    private final RedisTemplate<String, String> redisTemplate;
     
     /**
-     * 멱등성 검사
-     * 결제상태가 COMPLETED/PENDING 상태인 경우 여기서 예외를 던져서 상위 로직 실행을 차단
+     * 멱등성 검사 (Redis 분산 락 사용)
+     * 결제상태가 COMPLETED/PENDING/FAILED 상태인 경우 여기서 예외를 던져서 상위 로직 실행을 차단
      */
     public void checkForIdempotencyKey(String idempotencyKey) {
-         // 멱동성 키로 결제레코드 존재하는지 확인
+        String lockKey = "payment:idempotency:" + idempotencyKey;
+
+        // Redis SET NX (존재하지 않으면 설정, 30초 TTL)
+        Boolean lockAcquired = redisTemplate.opsForValue()
+            .setIfAbsent(lockKey, "locked", Duration.ofSeconds(30));
+
+        if (Boolean.FALSE.equals(lockAcquired)) {
+            // 락을 획득하지 못함 = 동시 요청 또는 이미 처리된 요청
+            // DB에서 결제 상태 확인하여 적절한 에러 반환
+            var existingPayment = paymentRepository.findByIdempotencyKey(idempotencyKey);
+            if (existingPayment.isPresent()) {
+                Payment payment = existingPayment.get();
+                PaymentStatus currentStatus = payment.status();
+
+                if(currentStatus == PaymentStatus.COMPLETED){
+                    // 이미 처리된 결제
+                    throw new BusinessException(ErrorCode.PAYMENT_ALREADY_PROCESSED);
+                }
+            }
+            // DB에 없거나 PENDING/FAILED 상태면 중복 요청
+            throw new BusinessException(ErrorCode.DUPLICATE_PAYMENT_REQUEST);
+        }
+
+        // DB에서도 확인 (Redis 락 이후 이중 체크)
         var existingPayment = paymentRepository.findByIdempotencyKey(idempotencyKey);
         if (existingPayment.isPresent()) {
             Payment payment = existingPayment.get();
@@ -33,6 +60,9 @@ public class PaymentService {
                 throw new BusinessException(ErrorCode.PAYMENT_ALREADY_PROCESSED);
             }else if(currentStatus == PaymentStatus.PENDING){
                 // 기존 결제상태 '완료'가 아닌 경우 중복 요청으로 간주
+                throw new BusinessException(ErrorCode.DUPLICATE_PAYMENT_REQUEST);
+            }else if(currentStatus == PaymentStatus.FAILED){
+                // 실패한 결제의 멱등성 키는 재사용 불가
                 throw new BusinessException(ErrorCode.DUPLICATE_PAYMENT_REQUEST);
             }
         }

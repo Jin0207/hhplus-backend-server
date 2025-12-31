@@ -23,6 +23,12 @@ public interface ProductRepository {
     Optional<Product> findById(Long productId);
 
     /**
+     * 상품 단건 조회 (비관적 락 - Pessimistic Lock)
+     * 재고 차감 시 동시성 제어를 위해 사용
+     */
+    Optional<Product> findByIdWithLock(Long productId);
+
+    /**
      * 상품 검색
      */
     Page<Product> findBySearch(ProductSearch search, Pageable pageable);

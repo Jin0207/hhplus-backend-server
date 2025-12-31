@@ -19,13 +19,13 @@ public record Stock(
      * 출고
      */
     public static Stock createOut(Long productId, Integer quatity, String reason){
-        return new Stock(productId, productId, quatity, StockType.OUT, reason, LocalDateTime.now());
+        return new Stock(null, productId, quatity, StockType.OUT, reason, LocalDateTime.now());
     }
     /**
      * 입고
      */
     public static Stock createIn(Long productId, Integer quatity, String reason){
-        return new Stock(productId, productId, quatity, StockType.IN, reason, LocalDateTime.now());
+        return new Stock(null, productId, quatity, StockType.IN, reason, LocalDateTime.now());
     }
 
 }

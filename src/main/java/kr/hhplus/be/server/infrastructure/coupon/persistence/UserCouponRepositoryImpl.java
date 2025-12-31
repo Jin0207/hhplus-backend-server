@@ -1,6 +1,8 @@
 package kr.hhplus.be.server.infrastructure.coupon.persistence;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,7 +16,7 @@ import lombok.RequiredArgsConstructor;
 @Repository
 @RequiredArgsConstructor
 public class UserCouponRepositoryImpl implements UserCouponRepository{
-    
+
     private final UserCouponJpaRepository userCouponJpaRepository;
 
     @Override
@@ -22,33 +24,34 @@ public class UserCouponRepositoryImpl implements UserCouponRepository{
         UserCouponEntity entity = UserCouponEntity.from(userCoupon);
         return userCouponJpaRepository.save(entity).toDomain();
     }
-    
+
     @Override
     public boolean existsByUserIdAndCouponId(Long userId, Long couponId) {
-        return userCouponJpaRepository.existsByIdUserIdAndIdCouponId(userId, couponId);
+        return userCouponJpaRepository.existsByUserIdAndCouponId(userId, couponId);
     }
 
     @Override
-    public Optional<UserCoupon> findByUserIdAndCouponId(Long userId, Long couponId) {
-        return userCouponJpaRepository.findByIdUserIdAndIdCouponId(userId, couponId)
-                .map(UserCouponEntity::toDomain);
+    public List<UserCoupon> findAllByCouponId(Long couponId) {
+        return userCouponJpaRepository.findByCouponId(couponId).stream()
+                .map(UserCouponEntity::toDomain)
+                .collect(Collectors.toList());
     }
 
     @Override
     public Optional<UserCoupon> findByUserIdAndCouponIdAndStatus(Long userId, Long couponId, UserCouponStatus status) {
-        return userCouponJpaRepository.findByIdUserIdAndIdCouponIdAndStatus(userId, couponId, status)
+        return userCouponJpaRepository.findByUserIdAndCouponIdAndStatus(userId, couponId, status)
                 .map(UserCouponEntity::toDomain);
     }
 
     @Override
     public Page<UserCoupon> findByUserId(Long userId, Pageable pageable) {
-        return userCouponJpaRepository.findByIdUserId(userId, pageable)
+        return userCouponJpaRepository.findByUserId(userId, pageable)
                 .map(UserCouponEntity::toDomain);
     }
 
     @Override
     public Page<UserCoupon> findByUserIdAndStatus(Long userId, UserCouponStatus status, Pageable pageable) {
-        return userCouponJpaRepository.findByIdUserIdAndStatus(userId, status, pageable)
+        return userCouponJpaRepository.findByUserIdAndStatus(userId, status, pageable)
                 .map(UserCouponEntity::toDomain);
     }
 }

@@ -167,22 +167,19 @@ public record Product(
      * 상품 판매 가능 상태 검증 (주문 전)
      */
     public void validateForOrder(Integer quantity) {
-        // 판매 상태 확인
-        if (this.status != ProductStatus.ON_SALE) {
-            throw new BusinessException(ErrorCode.PRODUCT_INACTIVE);
-        }
-        
-        // 재고 확인
-        if (this.stock < quantity) {
+        // 수량 검증 (먼저 수행)
+        validateQuantity(quantity);
+
+        if (!canPurchase(quantity)) {
+            if (this.status != ProductStatus.ON_SALE) {
+                throw new BusinessException(ErrorCode.PRODUCT_INACTIVE);
+            }
             throw new BusinessException(
                 ErrorCode.ORDER_STOCK_INSUFFICIENT,
                 this.productName,
                 this.stock
             );
         }
-        
-        // 수량 검증
-        validateQuantity(quantity);
     }
 
     /**
