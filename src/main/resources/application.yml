@@ -30,11 +30,18 @@ spring:
     username: application
     password: application
 
-  data: 
+  data:
     redis:
       host: localhost
       port: 6379
       database: 0
+
+# ==========================================
+# JWT 설정
+# ==========================================
+jwt:
+  secret: test-secret-key-for-concurrency-test-min-256-bits-hhplus-backend-server
+  expiration: 86400000  # 24시간
 
 # ==========================================
 # Outbox 패턴 설정
