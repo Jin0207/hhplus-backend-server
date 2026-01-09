@@ -54,6 +54,16 @@ public class UserService {
         return user;
     }
 
+    /*
+    * 사용자 조회 (ID, 비관적 락)
+    * 포인트 충전/사용 시 동시성 제어를 위해 사용
+    */
+    public User getUserWithLock(Long userId){
+        User user = userRepository.findByIdWithLock(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND, userId));
+        log.debug("유저 정보 (with lock) - {}", user);
+        return user;
+    }
+
     /**
      * 사용자 조회 (AccountId)
      */

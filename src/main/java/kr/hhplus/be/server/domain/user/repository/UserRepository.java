@@ -10,6 +10,11 @@ public interface UserRepository {
      */
     Optional<User> findById(Long userId);
     /**
+     * userId로 사용자 조회 (비관적 락)
+     * 포인트 충전/사용 시 동시성 제어를 위해 사용
+     */
+    Optional<User> findByIdWithLock(Long userId);
+    /**
      * accountId로 사용자 조회
      */
     Optional<User> findByAccountId(String accountId);
