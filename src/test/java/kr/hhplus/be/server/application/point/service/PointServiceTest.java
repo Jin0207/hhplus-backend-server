@@ -109,29 +109,29 @@ class PointServiceTest {
         Long userId = 1L;
         Long amount = 3000L;
         String comment = "주문 결제";
-        
+
         User user = new User(
             1L, "test@test.com", "테스터", 5000L,
             LocalDateTime.now(), null
         );
-        
+
         User usedUser = new User(
             1L, "test@test.com", "테스터", 2000L,
             LocalDateTime.now(), LocalDateTime.now()
         );
-        
-        when(userService.getUser(userId)).thenReturn(user);
+
+        when(userService.getUserWithLock(userId)).thenReturn(user);
         when(userService.save(any(User.class))).thenReturn(usedUser);
         when(pointHistoryRepository.save(any(PointHistory.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
-        
+
         // when
         User result = pointService.usePoint(userId, amount, comment);
-        
+
         // then
         assertThat(result).isNotNull();
         assertThat(result.point()).isEqualTo(2000L);
-        
+
         verify(pointHistoryRepository).save(argThat(history ->
             history.type() == PointType.USE &&
             history.point().equals(amount)
@@ -144,19 +144,19 @@ class PointServiceTest {
         // given
         Long userId = 1L;
         Long amount = 10000L;
-        
+
         User user = new User(
             1L, "test@test.com", "테스터", 5000L,
             LocalDateTime.now(), null
         );
-        
-        when(userService.getUser(userId)).thenReturn(user);
-        
+
+        when(userService.getUserWithLock(userId)).thenReturn(user);
+
         // when & then
         assertThatThrownBy(() -> pointService.usePoint(userId, amount, "결제"))
             .isInstanceOf(BusinessException.class)
             .hasFieldOrPropertyWithValue("errorCode", ErrorCode.POINT_BALANCE_INSUFFICIENT);
-        
+
         verify(userService, never()).save(any());
         verify(pointHistoryRepository, never()).save(any());
     }
@@ -168,29 +168,29 @@ class PointServiceTest {
         Long userId = 1L;
         Long amount = 5000L;
         String reason = "환불";
-        
+
         User user = new User(
             1L, "test@test.com", "테스터", 10000L,
             LocalDateTime.now(), null
         );
-        
+
         User refundedUser = new User(
             1L, "test@test.com", "테스터", 15000L,
             LocalDateTime.now(), LocalDateTime.now()
         );
-        
-        when(userService.getUser(userId)).thenReturn(user);
+
+        when(userService.getUserWithLock(userId)).thenReturn(user);
         when(userService.save(any(User.class))).thenReturn(refundedUser);
         when(pointHistoryRepository.save(any(PointHistory.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
-        
+
         // when
         User result = pointService.refundPoint(userId, amount);
-        
+
         // then
         assertThat(result).isNotNull();
         assertThat(result.point()).isEqualTo(15000L);
-        
+
         verify(pointHistoryRepository).save(argThat(history ->
             history.type() == PointType.CHARGE &&
             history.point().equals(amount) &&
