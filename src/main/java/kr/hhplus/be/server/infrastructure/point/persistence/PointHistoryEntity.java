@@ -31,7 +31,7 @@ public class PointHistoryEntity extends BaseTimeEntity{
     private Long userId;
 
     @Column(nullable = false)
-    private Integer point;
+    private Long point;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)

@@ -1,6 +1,8 @@
 package kr.hhplus.be.server.infrastructure.coupon.persistence;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,33 +16,42 @@ import lombok.RequiredArgsConstructor;
 @Repository
 @RequiredArgsConstructor
 public class UserCouponRepositoryImpl implements UserCouponRepository{
+
+    private final UserCouponJpaRepository userCouponJpaRepository;
+
     @Override
     public UserCoupon save(UserCoupon userCoupon) {
-        // TODO Auto-generated method stub
-        return null;
+        UserCouponEntity entity = UserCouponEntity.from(userCoupon);
+        return userCouponJpaRepository.save(entity).toDomain();
     }
-    
+
     @Override
     public boolean existsByUserIdAndCouponId(Long userId, Long couponId) {
-        // TODO Auto-generated method stub
-        return false;
+        return userCouponJpaRepository.existsByUserIdAndCouponId(userId, couponId);
     }
 
     @Override
-    public Page<UserCoupon> findByUserId(Long userI, Pageable pageable) {
-        // TODO Auto-generated method stub
-        return null;
+    public List<UserCoupon> findAllByCouponId(Long couponId) {
+        return userCouponJpaRepository.findByCouponId(couponId).stream()
+                .map(UserCouponEntity::toDomain)
+                .collect(Collectors.toList());
     }
 
     @Override
-    public Optional<UserCoupon> findByUserIdAndCouponId(Long userId, Long couponId) {
-        // TODO Auto-generated method stub
-        return Optional.empty();
+    public Optional<UserCoupon> findByUserIdAndCouponIdAndStatus(Long userId, Long couponId, UserCouponStatus status) {
+        return userCouponJpaRepository.findByUserIdAndCouponIdAndStatus(userId, couponId, status)
+                .map(UserCouponEntity::toDomain);
+    }
+
+    @Override
+    public Page<UserCoupon> findByUserId(Long userId, Pageable pageable) {
+        return userCouponJpaRepository.findByUserId(userId, pageable)
+                .map(UserCouponEntity::toDomain);
     }
 
     @Override
     public Page<UserCoupon> findByUserIdAndStatus(Long userId, UserCouponStatus status, Pageable pageable) {
-        // TODO Auto-generated method stub
-        return null;
+        return userCouponJpaRepository.findByUserIdAndStatus(userId, status, pageable)
+                .map(UserCouponEntity::toDomain);
     }
 }

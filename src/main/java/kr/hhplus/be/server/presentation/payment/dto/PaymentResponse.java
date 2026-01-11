@@ -11,7 +11,7 @@ import lombok.Builder;
 public record PaymentResponse(
     Long paymentId,
     Long orderId,
-    Integer price,
+    Long price,
     String status,
     String transactionId,
     String paymentType,

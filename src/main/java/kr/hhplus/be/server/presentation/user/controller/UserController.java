@@ -28,7 +28,6 @@ public class UserController {
 
     /**
      * 포인트 충전
-     * POST /api/users/{userId}/points/charge
      */
     @PostMapping("/points/charge")
     public ApiResponse<UserResponse> chargePoint(
@@ -44,7 +43,6 @@ public class UserController {
 
     /**
      * 포인트 사용
-     * POST /api/users/{userId}/points/use
      */
     @PostMapping("/points/use")
     public ApiResponse<UserResponse> useMyPoint(
@@ -60,19 +58,17 @@ public class UserController {
 
     /**
      * 포인트 잔액 조회
-     * GET /api/users/{userId}/points
      */
     @GetMapping("/points")
-    public ApiResponse<Integer> getMyPointBalance(
+    public ApiResponse<Long> getMyPointBalance(
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
         
-        Integer balance = userFacade.getPointBalance(userPrincipal.getUserId());
+        Long balance = userFacade.getPointBalance(userPrincipal.getUserId());
         return ApiResponse.success("포인트 잔액 조회 성공", balance);
     }
 
     /**
      * 포인트 이력 조회
-     * GET /api/users/{userId}/points/history
      */
     @GetMapping("/points/history")
     public ApiResponse<List<PointHistoryResponse>> getMyPointHistory(

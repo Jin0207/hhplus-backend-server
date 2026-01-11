@@ -1,7 +1,6 @@
 package kr.hhplus.be.server.application.coupon.service;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -25,7 +24,6 @@ import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 @Slf4j
 public class CouponService {
     private final CouponRepository couponRepository;
@@ -46,55 +44,71 @@ public class CouponService {
         // 1. Redis 중복 발급 체크
         Boolean alreadyIssued = redisTemplate.opsForValue()
             .setIfAbsent(issueKey, "1", Duration.ofDays(1));
-        
+
         if (Boolean.FALSE.equals(alreadyIssued)) {
             throw new BusinessException(ErrorCode.COUPON_ALREADY_ISSUED);
         }
 
+        // 2. 쿠폰 조회 (비관적 락 사용 - 동시성 제어)
+        Coupon coupon = couponRepository.findByIdWithLock(couponId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.COUPON_NOT_FOUND));
+
+        // 유효기간 및 상태 체크 (수량은 Redis에서 체크)
+        if (!coupon.isActive()) {
+            redisTemplate.delete(issueKey);
+            throw new BusinessException(ErrorCode.COUPON_NOT_AVAILABLE);
+        }
+
         try {
-            // 2. Redis 재고 차감
+            // 3. Redis 재고 차감
             Long remainingQuantity = redisTemplate.opsForValue().decrement(quantityKey);
-            
+
             if (remainingQuantity == null || remainingQuantity < 0) {
-                // 재고 부족 시 롤백
-                redisTemplate.opsForValue().increment(quantityKey);
+                // 재고 부족은 정상적인 실패이므로 issueKey만 삭제 (수량은 롤백하지 않음)
                 redisTemplate.delete(issueKey);
                 throw new BusinessException(ErrorCode.COUPON_OUT_OF_STOCK);
             }
 
-            // 3. DB 처리
-            Coupon coupon = couponRepository.findByIdWithLock(couponId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.COUPON_NOT_FOUND));
-
-            if (!coupon.canIssue()) {
-                redisTemplate.opsForValue().increment(quantityKey);
-                redisTemplate.delete(issueKey);
-                throw new BusinessException(ErrorCode.COUPON_NOT_AVAILABLE);
-            }
-
+            // 4. DB 처리 (UserCoupon 발급 및 쿠폰 수량 차감)
             UserCoupon userCoupon = UserCoupon.issue(userId, couponId, coupon.validTo());
             UserCoupon savedUserCoupon = userCouponRepository.save(userCoupon);
 
+            // DB 쿠폰 수량 차감 (비관적 락으로 동시성 제어)
             Coupon updatedCoupon = coupon.decreaseQuantity();
             couponRepository.save(updatedCoupon);
 
-            log.info("쿠폰 발급 성공: userId={}, couponId={}, remaining={}", 
+            log.info("쿠폰 발급 성공: userId={}, couponId={}, remaining={}",
                 userId, couponId, remainingQuantity);
 
             return UserCouponResponse.from(savedUserCoupon, coupon);
 
         } catch (BusinessException e) {
+            if (e.getErrorCode() != ErrorCode.COUPON_OUT_OF_STOCK) {
+                rollbackRedis(quantityKey, issueKey);
+            }
             throw e;
         } catch (Exception e) {
-            // 예외 발생 시 Redis 롤백
+            rollbackRedis(quantityKey, issueKey);
+            throw new BusinessException(ErrorCode.COUPON_ISSUE_FAILED, e);
+        }
+    }
+
+    /**
+     * Redis 롤백 (재고 복구 및 발급 키 삭제)
+     */
+    private void rollbackRedis(String quantityKey, String issueKey) {
+        try {
             redisTemplate.opsForValue().increment(quantityKey);
             redisTemplate.delete(issueKey);
-            throw new BusinessException(ErrorCode.COUPON_ISSUE_FAILED, e);
+            log.warn("Redis 롤백 완료: quantityKey={}, issueKey={}", quantityKey, issueKey);
+        } catch (Exception e) {
+            log.error("Redis 롤백 실패: quantityKey={}, issueKey={}", quantityKey, issueKey, e);
         }
     }
     /**
      * 보유 쿠폰 목록 조회 (페이징)
      */
+    @Transactional(readOnly = true)
     public Page<UserCouponResponse> getUserCoupons(Long userId, Pageable pageable) {
         Page<UserCoupon> userCoupons = userCouponRepository.findByUserId(userId, pageable);
 
@@ -114,6 +128,7 @@ public class CouponService {
     /**
      * 사용 가능한 쿠폰 목록 조회 (페이징)
      */
+    @Transactional(readOnly = true)
     public Page<UserCouponResponse> getAvailableCoupons(Long userId, Pageable pageable) {
         Page<UserCoupon> userCoupons = userCouponRepository
             .findByUserIdAndStatus(userId, UserCouponStatus.AVAILABLE, pageable);
@@ -133,10 +148,48 @@ public class CouponService {
     }
 
     /**
-     * 쿠폰 조회
+     *사용자 쿠폰 조회
      */
-    public Coupon getCoupon(Long couponId) {
+    @Transactional(readOnly = true)
+    public Coupon getCoupon(Long userId, Long couponId) {
         return couponRepository.findById(couponId)
             .orElseThrow(() -> new BusinessException(ErrorCode.COUPON_NOT_FOUND, couponId));
+    }
+
+    /**
+     * 쿠폰 사용 처리
+     */
+    public void useCoupon(Long userId, Long couponId) {
+        // 사용자의 사용 가능한 쿠폰 조회
+        UserCoupon userCoupon = userCouponRepository
+            .findByUserIdAndCouponIdAndStatus(userId, couponId, UserCouponStatus.AVAILABLE)
+            .orElseThrow(() -> new BusinessException(
+                ErrorCode.COUPON_NOT_FOUND, 
+                userId, 
+                couponId
+            ));
+        
+        // 쿠폰 사용 처리
+        UserCoupon usedCoupon = userCoupon.use();
+        userCouponRepository.save(usedCoupon);
+        
+    }
+
+    /**
+     * 쿠폰 복구 (주문 취소 시)
+     */
+    public void restoreCoupon(Long userId, Long couponId) {
+        // 사용된 쿠폰 조회
+        UserCoupon userCoupon = userCouponRepository
+            .findByUserIdAndCouponIdAndStatus(userId, couponId, UserCouponStatus.USED)
+            .orElseThrow(() -> new BusinessException(
+                ErrorCode.COUPON_NOT_FOUND, 
+                userId, 
+                couponId
+            ));
+        
+        // 쿠폰 복구 (AVAILABLE 상태로 변경)
+        UserCoupon restoredCoupon = userCoupon.restore();
+        userCouponRepository.save(restoredCoupon);
     }
 }

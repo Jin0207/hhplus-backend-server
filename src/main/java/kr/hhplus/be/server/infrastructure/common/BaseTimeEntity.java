@@ -21,6 +21,6 @@ public abstract class BaseTimeEntity {
 	private LocalDateTime crtDttm;
 
 	@UpdateTimestamp
-	@Column(name = "upd_dttm", nullable = false)
+	@Column(name = "upd_dttm")
 	private LocalDateTime updDttm;
 }

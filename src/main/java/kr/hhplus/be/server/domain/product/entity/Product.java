@@ -12,7 +12,7 @@ import kr.hhplus.be.server.support.exception.ErrorCode;
 public record Product(
     Long id,                 // 식별자
     String productName,         // 상품명
-    Integer price,              // 가격
+    Long price,              // 가격
     Integer stock,              // 재고
     ProductCategory category,   // 카테고리
     ProductStatus status,       // 상태
@@ -20,6 +20,30 @@ public record Product(
     LocalDateTime crtDttm,      // 생성일
     LocalDateTime updDttm       // 수정일
 ) {  
+    /**
+     * 재고  증가
+     * @param quantity 증가할 수량
+     * @return Product
+     */
+    public Product increaseStock(Integer quantity) {
+        validateQuantity(quantity);
+        
+        Integer newStock = this.stock + quantity;
+        ProductStatus newStatus = (this.status == ProductStatus.SOLD_OUT) ? ProductStatus.ON_SALE : this.status;
+        
+        return new Product(
+            this.id,
+            this.productName,
+            this.price,
+            newStock,
+            this.category,
+            newStatus,
+            this.salesQuantity,
+            this.crtDttm,
+            LocalDateTime.now()
+        );
+    }
+
     /**
      * 재고 차감
      * @param quantity 차감할 수량
@@ -132,13 +156,32 @@ public record Product(
      * @param quantity 주문 수량
      * @return 총 금액
      */
-    public Integer calculateTotalPrice(Integer quantity) {
+    public Long calculateTotalPrice(Integer quantity) {
         validateQuantity(quantity);
         return this.price * quantity;
     }
 
     // ==================== 검증 메서드 ====================
     
+    /**
+     * 상품 판매 가능 상태 검증 (주문 전)
+     */
+    public void validateForOrder(Integer quantity) {
+        // 수량 검증 (먼저 수행)
+        validateQuantity(quantity);
+
+        if (!canPurchase(quantity)) {
+            if (this.status != ProductStatus.ON_SALE) {
+                throw new BusinessException(ErrorCode.PRODUCT_INACTIVE);
+            }
+            throw new BusinessException(
+                ErrorCode.ORDER_STOCK_INSUFFICIENT,
+                this.productName,
+                this.stock
+            );
+        }
+    }
+
     /**
      * 수량 검증
      */
@@ -147,27 +190,5 @@ public record Product(
             // 수량은 0보다 작을 수 없습니다.
             throw new BusinessException(ErrorCode.LESS_THAN_ZERO, "수량");
         }
-    }
-
-    /**
-     * 상품 판매 가능 상태 검증 (주문 전)
-     */
-    public void validateForOrder(Integer quantity) {
-        // 판매 상태 확인
-        if (this.status != ProductStatus.ON_SALE) {
-            throw new BusinessException(ErrorCode.PRODUCT_INACTIVE);
-        }
-        
-        // 재고 확인
-        if (this.stock < quantity) {
-            throw new BusinessException(
-                ErrorCode.ORDER_STOCK_INSUFFICIENT,
-                this.productName,
-                this.stock
-            );
-        }
-        
-        // 수량 검증
-        validateQuantity(quantity);
     }
 }

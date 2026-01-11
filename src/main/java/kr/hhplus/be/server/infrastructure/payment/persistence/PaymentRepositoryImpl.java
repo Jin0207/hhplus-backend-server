@@ -1,6 +1,8 @@
 package kr.hhplus.be.server.infrastructure.payment.persistence;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Repository;
 
@@ -15,13 +17,26 @@ public class PaymentRepositoryImpl implements PaymentRepository {
     private final PaymentJpaRepository jpaRepository;
 
     @Override
-    public Optional<Payment> findById(Long id) {
-        // TODO Auto-generated method stub
-        return Optional.empty();
-    }
-    @Override
     public Payment save(Payment payment) {
-        // TODO Auto-generated method stub
-        return null;
+        PaymentEntity entity = PaymentEntity.from(payment);
+        return jpaRepository.save(entity).toDomain();
+    }
+
+    @Override
+    public Optional<Payment> findById(Long id) {
+        return jpaRepository.findById(id).map(PaymentEntity::toDomain);
+    }
+
+    @Override
+    public Optional<Payment> findByIdempotencyKey(String idempotencyKey) {
+        return jpaRepository.findByIdempotencyKey(idempotencyKey)
+                .map(PaymentEntity::toDomain);
+    }
+
+    @Override
+    public List<Payment> findByUserId(Long userId) {
+        return jpaRepository.findByUserId(userId).stream()
+                .map(PaymentEntity::toDomain)
+                .collect(Collectors.toList());
     }
 }
