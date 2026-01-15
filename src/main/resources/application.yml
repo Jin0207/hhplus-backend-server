@@ -69,3 +69,24 @@ outbox:
 
     # Dead Letter Queue 체크 cron (매시간)
     dlq-check-cron: "0 0 * * * *"
+
+# ==========================================
+# 인기 상품 배치 설정
+# ==========================================
+popular-product:
+  # 상위 N개 상품
+  top-count: 5
+
+  # 집계 기간 (일)
+  period-days: 3
+
+  # 데이터 보관 기간 (일)
+  cleanup-days: 7
+
+  # 스케줄러 설정
+  schedule:
+    # 집계 배치 cron (매일 새벽 1시)
+    aggregate-cron: "0 0 1 * * *"
+
+    # 정리 배치 cron (매일 새벽 4시)
+    cleanup-cron: "0 0 4 * * *"
