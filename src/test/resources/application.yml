@@ -3,6 +3,9 @@ spring:
     activate:
       on-profile: test
 
+  main:
+    allow-bean-definition-overriding: true
+
   datasource:
     url: jdbc:mysql://localhost:3306/hhplus?characterEncoding=UTF-8&serverTimezone=UTC&rewriteBatchedStatements=true
     username: application
@@ -50,3 +53,10 @@ outbox:
     publish-initial-delay: 5000
     cleanup-cron: "0 0 3 * * *"
     dlq-check-cron: "0 0 * * * *"
+
+# 인기 상품 배치 설정 (테스트용)
+popular-product:
+  top-count: 5
+  period-days: 0
+  end-date-offset: 0
+  cleanup-days: 7

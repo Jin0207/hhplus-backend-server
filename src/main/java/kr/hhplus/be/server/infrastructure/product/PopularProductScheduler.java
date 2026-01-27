@@ -36,17 +36,20 @@ public class PopularProductScheduler {
     @Value("${popular-product.cleanup-days:7}")
     private int cleanupDays;
 
+    @Value("${popular-product.end-date-offset:1}")
+    private int endDateOffset;
+
     /**
      * 매일 새벽 1시: 인기 상품 집계
      * - 기준일: 오늘 (배치 실행일)
-     * - 집계 기간: D-3 ~ D-1 (직전 3일)
+     * - 집계 기간: D-(periodDays) ~ D-(endDateOffset) (기본: D-3 ~ D-1, 직전 3일)
      */
     @Scheduled(cron = "${popular-product.schedule.aggregate-cron:0 0 1 * * *}")
     @Transactional
     public void aggregatePopularProducts() {
         LocalDate today = LocalDate.now();
         LocalDate startDate = today.minusDays(periodDays);  // D-3
-        LocalDate endDate = today.minusDays(1);             // D-1
+        LocalDate endDate = today.minusDays(endDateOffset); // D-1 (테스트에서는 D-0)
 
         log.info("[PopularProduct] 집계 시작: baseDate={}, period={} ~ {}",
             today, startDate, endDate);

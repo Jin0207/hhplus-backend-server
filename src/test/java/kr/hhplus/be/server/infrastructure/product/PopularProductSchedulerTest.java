@@ -54,6 +54,7 @@ class PopularProductSchedulerTest {
         ReflectionTestUtils.setField(scheduler, "topCount", 5);
         ReflectionTestUtils.setField(scheduler, "periodDays", 3);
         ReflectionTestUtils.setField(scheduler, "cleanupDays", 7);
+        ReflectionTestUtils.setField(scheduler, "endDateOffset", 1);
     }
 
     @Nested
