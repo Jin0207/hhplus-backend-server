@@ -58,19 +58,27 @@ public class PaymentRaceConditionIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        // Redis 초기화
-        Set<String> keys = redisTemplate.keys("payment:idempotency:*");
-        if (keys != null && !keys.isEmpty()) {
-            redisTemplate.delete(keys);
+        // Redis 초기화 (기존 멱등성 키 + 분산락 키 모두 정리)
+        Set<String> paymentKeys = redisTemplate.keys("payment:idempotency:*");
+        if (paymentKeys != null && !paymentKeys.isEmpty()) {
+            redisTemplate.delete(paymentKeys);
+        }
+        Set<String> lockKeys = redisTemplate.keys("lock:*");
+        if (lockKeys != null && !lockKeys.isEmpty()) {
+            redisTemplate.delete(lockKeys);
         }
     }
 
     @AfterEach
     void tearDown() {
-        // Redis 정리
-        Set<String> keys = redisTemplate.keys("payment:idempotency:*");
-        if (keys != null && !keys.isEmpty()) {
-            redisTemplate.delete(keys);
+        // Redis 정리 (기존 멱등성 키 + 분산락 키 모두 정리)
+        Set<String> paymentKeys = redisTemplate.keys("payment:idempotency:*");
+        if (paymentKeys != null && !paymentKeys.isEmpty()) {
+            redisTemplate.delete(paymentKeys);
+        }
+        Set<String> lockKeys = redisTemplate.keys("lock:*");
+        if (lockKeys != null && !lockKeys.isEmpty()) {
+            redisTemplate.delete(lockKeys);
         }
     }
 
@@ -136,6 +144,9 @@ public class PaymentRaceConditionIntegrationTest {
                     } else if ("E302".equals(errorCode)) {
                         // PAYMENT_ALREADY_PROCESSED
                         alreadyProcessedCount.incrementAndGet();
+                    } else if ("E600".equals(errorCode)) {
+                        // LOCK_ACQUISITION_FAILED - 분산락 획득 실패도 중복 요청으로 처리
+                        duplicateRequestCount.incrementAndGet();
                     } else {
                         otherErrorCount.incrementAndGet();
                         System.err.println("Unexpected error: " + errorCode + " - " + e.getMessage());
@@ -324,7 +335,8 @@ public class PaymentRaceConditionIntegrationTest {
                         totalSuccess.incrementAndGet();
                     } catch (BusinessException e) {
                         String errorCode = e.getErrorCode().getCode();
-                        if ("E303".equals(errorCode) || "E302".equals(errorCode)) {
+                        // E303: DUPLICATE_PAYMENT_REQUEST, E302: PAYMENT_ALREADY_PROCESSED, E600: LOCK_ACQUISITION_FAILED
+                        if ("E303".equals(errorCode) || "E302".equals(errorCode) || "E600".equals(errorCode)) {
                             totalDuplicate.incrementAndGet();
                         } else {
                             totalOtherError.incrementAndGet();

@@ -8,6 +8,7 @@ import kr.hhplus.be.server.application.order.dto.response.OrderAndPayment;
 import kr.hhplus.be.server.application.order.dto.response.OrderResponse;
 import kr.hhplus.be.server.application.payment.dto.response.PaymentResult;
 import kr.hhplus.be.server.application.payment.facade.PaymentProcessorImpl;
+import kr.hhplus.be.server.infrastructure.lock.WithDistributedLock;
 import kr.hhplus.be.server.support.exception.BusinessException;
 import kr.hhplus.be.server.support.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -22,13 +23,25 @@ public class OrderFacade {
 
     /**
      * 주문 및 결제 완료
+     *
+     * 분산락과 트랜잭션 실행 순서:
+     * 1. @WithDistributedLock (Order.HIGHEST_PRECEDENCE) - 락 획득
+     * 2. @Transactional - 트랜잭션 시작
+     * 3. 비즈니스 로직 실행
+     * 4. @Transactional - 트랜잭션 커밋
+     * 5. @WithDistributedLock - 락 해제 (finally)
      */
+    @WithDistributedLock(
+        key = "'payment:idempotency:' + #request.idempotencyKey()",
+        waitTime = 0,
+        leaseTime = 30
+    )
     @Transactional
     public OrderResponse completeOrder(Long userId, OrderCreateRequest request) {
 
         try {
-            // 1. 멱등성 검사
-            paymentProcessor.validateIdempotencyKey(request.idempotencyKey());
+            // 1. 멱등성 검사 (DB 이중 체크 - 이미 처리된 결제인지 확인)
+            paymentProcessor.validateIdempotencyKeyInDb(request.idempotencyKey());
             
             // 2. 주문 초기화 (재고 차감, 포인트 차감)
             OrderAndPayment initialData = orderTransactionManager.initializeOrder(userId, request);
