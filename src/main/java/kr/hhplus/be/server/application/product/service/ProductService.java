@@ -10,7 +10,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import kr.hhplus.be.server.application.common.response.PageResponse;
 import kr.hhplus.be.server.application.product.dto.request.ProductSearchCommand;
+import kr.hhplus.be.server.domain.product.entity.PopularProduct;
 import kr.hhplus.be.server.domain.product.entity.Product;
+import kr.hhplus.be.server.domain.product.repository.PopularProductRepository;
 import kr.hhplus.be.server.domain.product.repository.ProductRepository;
 import kr.hhplus.be.server.presentation.product.dto.response.PopularProductResponse;
 import kr.hhplus.be.server.presentation.product.dto.response.ProductResponse;
@@ -26,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ProductService {
 
     private final ProductRepository productRepository;
+    private final PopularProductRepository popularProductRepository;
     
     /**
      * 상품 단건 검색
@@ -135,10 +138,24 @@ public class ProductService {
 
     /**
      * 인기 상품 조회 (최근 3일 기준 상위 5개)
+     * - 우선: 캐시 테이블(popular_products)에서 조회
+     * - Fallback: 캐시가 없으면 실시간 집계
      */
     public List<PopularProductResponse> findPopularProducts() {
+        // 1. 캐시 테이블에서 최신 데이터 조회
+        List<PopularProduct> cachedProducts = popularProductRepository.findLatest();
+
+        if (!cachedProducts.isEmpty()) {
+            log.debug("[인기상품] 캐시 테이블 조회: {} 건", cachedProducts.size());
+            return cachedProducts.stream()
+                .map(PopularProductResponse::from)
+                .toList();
+        }
+
+        // 2. 캐시가 없으면 실시간 조회 (fallback)
+        log.debug("[인기상품] 캐시 없음, 실시간 조회");
         List<Product> popularProducts = productRepository.findPopularProducts();
-        
+
         return popularProducts.stream()
             .map(PopularProductResponse::from)
             .toList();

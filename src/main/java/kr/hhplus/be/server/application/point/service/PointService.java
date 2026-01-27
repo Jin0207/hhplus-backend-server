@@ -39,13 +39,14 @@ private final UserService userService;
     /**
      * 포인트 사용
      * - 주문 프로세스에서만 호출됨으로 @Transactional 제거
+     * - 동시성 제어를 위해 비관적 락 사용
      */
     public User usePoint(Long userId, Long amount, String comment) {
-        User user = userService.getUser(userId);
+        User user = userService.getUserWithLock(userId);
         User usedUser = user.usePoint(amount);
-        
+
         recordPointHistory(userId, amount, PointType.USE, comment);
-        
+
         return userService.save(usedUser);
     }
 
@@ -60,9 +61,10 @@ private final UserService userService;
     /**
      * 포인트 환불 (comment 포함)
      * - 주문 취소 시 사용
+     * - 동시성 제어를 위해 비관적 락 사용
      */
     public User refundPoint(Long userId, Long amount, String comment) {
-        User user = userService.getUser(userId);
+        User user = userService.getUserWithLock(userId);
         User refundedUser = user.chargePoint(amount);
 
         recordPointHistory(userId, amount, PointType.CHARGE, comment);

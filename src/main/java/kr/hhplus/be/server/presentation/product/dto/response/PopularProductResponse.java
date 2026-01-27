@@ -1,6 +1,7 @@
 package kr.hhplus.be.server.presentation.product.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import kr.hhplus.be.server.domain.product.entity.PopularProduct;
 import kr.hhplus.be.server.domain.product.entity.Product;
 import kr.hhplus.be.server.domain.product.enums.ProductStatus;
 
@@ -36,6 +37,21 @@ public record PopularProductResponse(
             product.category().name(),
             product.status(),
             product.salesQuantity()
+        );
+    }
+
+    /**
+     * 캐시 테이블(PopularProduct)로부터 변환
+     */
+    public static PopularProductResponse from(PopularProduct popularProduct) {
+        return new PopularProductResponse(
+            popularProduct.productId(),
+            popularProduct.productName(),
+            popularProduct.price(),
+            null,  // 캐시 테이블에는 재고 정보 없음
+            popularProduct.category() != null ? popularProduct.category().name() : null,
+            null,  // 캐시 테이블에는 상태 정보 없음
+            popularProduct.totalSalesQuantity()
         );
     }
 }
