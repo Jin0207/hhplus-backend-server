@@ -2,6 +2,7 @@ package kr.hhplus.be.server.application.product.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -9,12 +10,14 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -27,13 +30,13 @@ import org.springframework.data.domain.Pageable;
 
 import kr.hhplus.be.server.application.common.response.PageResponse;
 import kr.hhplus.be.server.application.product.dto.request.ProductSearchCommand;
-import kr.hhplus.be.server.application.product.service.ProductService;
+import kr.hhplus.be.server.domain.product.entity.PopularProduct;
 import kr.hhplus.be.server.domain.product.entity.Product;
 import kr.hhplus.be.server.domain.product.entity.ProductSearch;
 import kr.hhplus.be.server.domain.product.enums.ProductCategory;
 import kr.hhplus.be.server.domain.product.enums.ProductStatus;
+import kr.hhplus.be.server.domain.product.repository.PopularProductRepository;
 import kr.hhplus.be.server.domain.product.repository.ProductRepository;
-import kr.hhplus.be.server.infrastructure.product.persistence.ProductEntity;
 import kr.hhplus.be.server.presentation.product.dto.response.PopularProductResponse;
 import kr.hhplus.be.server.presentation.product.dto.response.ProductResponse;
 import kr.hhplus.be.server.support.exception.BusinessException;
@@ -43,6 +46,9 @@ import kr.hhplus.be.server.support.exception.BusinessException;
 public class ProductServiceTest {
     @Mock
     private ProductRepository productRepository;
+
+    @Mock
+    private PopularProductRepository popularProductRepository;
 
     @InjectMocks
     private ProductService productService;
@@ -193,40 +199,127 @@ public class ProductServiceTest {
         );
     }
 
-    @Test
-    @DisplayName("최근 3일 기준 누적판매량 상위 5개 상품 조회")
-    public void 최근_3일_기준_누적판매량_상위_5개_상품_조회() {
-// given
-        when(productRepository.findPopularProducts())
-            .thenReturn(mockProductList);
+    // ==================== 인기 상품 조회 테스트 (캐시 테이블 + Fallback) ====================
 
-        // when
-        List<PopularProductResponse> result = productService.findPopularProducts();
+    @Nested
+    @DisplayName("인기 상품 조회 (findPopularProducts)")
+    class FindPopularProducts {
 
-        // then
-        assertNotNull(result);
-        assertEquals(2, result.size());
-        assertEquals("상의1", result.get(0).productName());
-        assertEquals("바지1", result.get(1).productName());
-        assertEquals(10, result.get(0).salesQuantity());
-        assertEquals(20, result.get(1).salesQuantity());
-        
-        verify(productRepository, times(1)).findPopularProducts();
-    }
+        private List<PopularProduct> mockCachedProducts;
 
-    @Test
-    @DisplayName("인기 상품 조회 - 데이터가 없는 경우 빈 리스트 반환")
-    void 인기상품_없음() {
-        // given
-        when(productRepository.findPopularProducts())
-            .thenReturn(List.of());
+        @BeforeEach
+        void setUpPopularProducts() {
+            LocalDate baseDate = LocalDate.now();
+            mockCachedProducts = List.of(
+                PopularProduct.fromAggregation(1, 1L, "인기상품1", 50000L, ProductCategory.TOP, 150, baseDate),
+                PopularProduct.fromAggregation(2, 2L, "인기상품2", 30000L, ProductCategory.PANTS, 120, baseDate),
+                PopularProduct.fromAggregation(3, 3L, "인기상품3", 80000L, ProductCategory.OUTER, 100, baseDate)
+            );
+        }
 
-        // when
-        List<PopularProductResponse> result = productService.findPopularProducts();
+        @Test
+        @DisplayName("성공: 캐시 테이블에 데이터가 있으면 캐시에서 조회한다")
+        void 캐시_테이블_조회_성공() {
+            // given
+            when(popularProductRepository.findLatest())
+                .thenReturn(mockCachedProducts);
 
-        // then
-        assertNotNull(result);
-        assertEquals(0, result.size());
+            // when
+            List<PopularProductResponse> result = productService.findPopularProducts();
+
+            // then
+            assertNotNull(result);
+            assertEquals(3, result.size());
+            assertEquals("인기상품1", result.get(0).productName());
+            assertEquals("인기상품2", result.get(1).productName());
+            assertEquals("인기상품3", result.get(2).productName());
+            assertEquals(150, result.get(0).salesQuantity());
+
+            // 캐시 테이블만 조회하고 실시간 조회는 하지 않음
+            verify(popularProductRepository, times(1)).findLatest();
+            verify(productRepository, never()).findPopularProducts();
+        }
+
+        @Test
+        @DisplayName("성공: 캐시 테이블에 데이터가 없으면 실시간 조회로 Fallback한다")
+        void 캐시_없으면_실시간_조회_Fallback() {
+            // given
+            when(popularProductRepository.findLatest())
+                .thenReturn(List.of()); // 캐시 비어있음
+            when(productRepository.findPopularProducts())
+                .thenReturn(mockProductList);
+
+            // when
+            List<PopularProductResponse> result = productService.findPopularProducts();
+
+            // then
+            assertNotNull(result);
+            assertEquals(2, result.size());
+            assertEquals("상의1", result.get(0).productName());
+            assertEquals("바지1", result.get(1).productName());
+
+            // 캐시 조회 후 실시간 조회 수행
+            verify(popularProductRepository, times(1)).findLatest();
+            verify(productRepository, times(1)).findPopularProducts();
+        }
+
+        @Test
+        @DisplayName("성공: 캐시와 실시간 모두 데이터 없으면 빈 리스트 반환")
+        void 인기상품_없음_빈_리스트() {
+            // given
+            when(popularProductRepository.findLatest())
+                .thenReturn(List.of());
+            when(productRepository.findPopularProducts())
+                .thenReturn(List.of());
+
+            // when
+            List<PopularProductResponse> result = productService.findPopularProducts();
+
+            // then
+            assertNotNull(result);
+            assertEquals(0, result.size());
+
+            verify(popularProductRepository, times(1)).findLatest();
+            verify(productRepository, times(1)).findPopularProducts();
+        }
+
+        @Test
+        @DisplayName("성공: 캐시 테이블 데이터는 재고/상태 정보가 null이다")
+        void 캐시_데이터_스냅샷_검증() {
+            // given
+            when(popularProductRepository.findLatest())
+                .thenReturn(mockCachedProducts);
+
+            // when
+            List<PopularProductResponse> result = productService.findPopularProducts();
+
+            // then
+            assertNotNull(result);
+            // 캐시 테이블에서 조회한 데이터는 stock, status가 null
+            assertNull(result.get(0).stock());
+            assertNull(result.get(0).status());
+            // 하지만 판매량은 존재
+            assertEquals(150, result.get(0).salesQuantity());
+        }
+
+        @Test
+        @DisplayName("성공: 실시간 조회 데이터는 재고/상태 정보가 존재한다")
+        void 실시간_데이터_전체_정보_검증() {
+            // given
+            when(popularProductRepository.findLatest())
+                .thenReturn(List.of());
+            when(productRepository.findPopularProducts())
+                .thenReturn(mockProductList);
+
+            // when
+            List<PopularProductResponse> result = productService.findPopularProducts();
+
+            // then
+            assertNotNull(result);
+            // 실시간 조회 데이터는 stock, status 존재
+            assertEquals(10, result.get(0).stock());
+            assertEquals(ProductStatus.ON_SALE, result.get(0).status());
+        }
     }
 
     @Test

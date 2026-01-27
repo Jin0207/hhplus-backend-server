@@ -83,6 +83,28 @@ Table user_coupons{
 }
 
 // ============================================
+// 인기 상품 관리 (배치 집계용)
+// ============================================
+Table popular_products {
+  id bigint [primary key, increment, note: '식별자']
+  rank integer [not null, note: '순위 (1~5)']
+  product_id bigint [not null, ref: > products.id, note: '상품 ID']
+  product_name varchar(200) [not null, note: '상품명 (스냅샷)']
+  price integer [not null, note: '판매가격 (스냅샷)']
+  category varchar(50) [note: '카테고리 (스냅샷)']
+  total_sales_quantity integer [not null, default: 0, note: '집계 기간 총 판매량']
+  base_date date [not null, note: '기준일 (배치 실행일)']
+  period_start_date date [not null, note: '집계 시작일 (base_date - 3일)']
+  period_end_date date [not null, note: '집계 종료일 (base_date - 1일)']
+  crt_dttm datetime [not null, default: `now()`, note: '생성일']
+
+  indexes {
+    (base_date, rank) [unique, name: 'uk_base_date_rank', note: '기준일+순위 유니크']
+    base_date [name: 'idx_base_date', note: '기준일 조회용']
+  }
+}
+
+// ============================================
 // 상품 관리
 // ============================================
 Table products {

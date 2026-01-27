@@ -271,7 +271,190 @@ class CouponRaceConditionIntegrationTest {
     }
 
     @Test
-    @DisplayName("✅ 쿠폰 사용 후 복구 시 재발급 가능")
+    @DisplayName("극한 동시성 테스트 - 1000명이 50개 쿠폰 경쟁")
+    void extremeConcurrencyTest_1000Users_50Coupons() throws InterruptedException {
+        // Given: 수량 50개인 선착순 쿠폰
+        int couponQuantity = 50;
+        Coupon limitedCoupon = couponRepository.save(
+            new Coupon(
+                null,
+                "극한 동시성 테스트 쿠폰",
+                CouponType.AMOUNT,
+                10000L,
+                0L,
+                LocalDateTime.now(),
+                LocalDateTime.now().plusDays(30),
+                couponQuantity,
+                couponQuantity,
+                CouponStatus.ACTIVE,
+                LocalDateTime.now(),
+                null
+            )
+        );
+
+        // Redis에 쿠폰 수량 초기화
+        String quantityKey = COUPON_QUANTITY_KEY + limitedCoupon.id();
+        redisTemplate.opsForValue().set(quantityKey, String.valueOf(couponQuantity));
+
+        // Given: 1000명의 사용자 생성
+        int userCount = 1000;
+        User[] users = new User[userCount];
+        long timestamp = System.currentTimeMillis();
+        for (int i = 0; i < userCount; i++) {
+            users[i] = userRepository.save(
+                User.create("extreme_user" + i + "_" + timestamp + "@example.com", "password123")
+            );
+        }
+
+        // When: 1000명이 동시에 50개 쿠폰 발급 요청 (극한 경쟁)
+        // ThreadPool을 200개로 설정하여 더 높은 동시성 보장
+        ExecutorService executorService = Executors.newFixedThreadPool(200);
+        CountDownLatch latch = new CountDownLatch(userCount);
+
+        AtomicInteger successCount = new AtomicInteger(0);
+        AtomicInteger failureCount = new AtomicInteger(0);
+
+        long startTime = System.currentTimeMillis();
+
+        for (int i = 0; i < userCount; i++) {
+            final int userIndex = i;
+            executorService.submit(() -> {
+                try {
+                    couponService.issueCoupon(users[userIndex].id(), limitedCoupon.id());
+                    successCount.incrementAndGet();
+                } catch (BusinessException e) {
+                    failureCount.incrementAndGet();
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+
+        latch.await();
+        executorService.shutdown();
+
+        long endTime = System.currentTimeMillis();
+        long duration = endTime - startTime;
+
+        // Then: 정확히 50명만 성공
+        assertThat(successCount.get()).isEqualTo(couponQuantity);
+        assertThat(failureCount.get()).isEqualTo(userCount - couponQuantity);
+
+        // Then: DB에 UserCoupon이 50개만 생성됨
+        long userCouponCount = userCouponRepository.findAllByCouponId(limitedCoupon.id()).size();
+        assertThat(userCouponCount).isEqualTo(couponQuantity);
+
+        // Then: 쿠폰 수량 확인
+        Coupon updatedCoupon = couponRepository.findById(limitedCoupon.id()).orElseThrow();
+        assertThat(updatedCoupon.availableQuantity()).isEqualTo(0);
+
+        // 성능 로그 출력
+        System.out.println("===========================================");
+        System.out.println("극한 동시성 테스트 결과");
+        System.out.println("===========================================");
+        System.out.println("총 요청 수: " + userCount + "명");
+        System.out.println("쿠폰 수량: " + couponQuantity + "개");
+        System.out.println("성공: " + successCount.get() + "명");
+        System.out.println("실패: " + failureCount.get() + "명");
+        System.out.println("실행 시간: " + duration + "ms (" + (duration / 1000.0) + "초)");
+        System.out.println("TPS: " + (userCount * 1000.0 / duration) + " 요청/초");
+        System.out.println("===========================================");
+    }
+
+    @Test
+    @DisplayName("동시성 테스트 - 500명이 10개 쿠폰 경쟁 (경쟁률 50:1)")
+    void extremeConcurrencyTest_500Users_10Coupons() throws InterruptedException {
+        // Given: 수량 10개인 선착순 쿠폰 (경쟁률 50배)
+        int couponQuantity = 10;
+        Coupon limitedCoupon = couponRepository.save(
+            new Coupon(
+                null,
+                "초고경쟁 쿠폰",
+                CouponType.AMOUNT,
+                15000L,
+                0L,
+                LocalDateTime.now(),
+                LocalDateTime.now().plusDays(30),
+                couponQuantity,
+                couponQuantity,
+                CouponStatus.ACTIVE,
+                LocalDateTime.now(),
+                null
+            )
+        );
+
+        // Redis에 쿠폰 수량 초기화
+        String quantityKey = COUPON_QUANTITY_KEY + limitedCoupon.id();
+        redisTemplate.opsForValue().set(quantityKey, String.valueOf(couponQuantity));
+
+        // Given: 500명의 사용자 생성
+        int userCount = 500;
+        User[] users = new User[userCount];
+        long timestamp = System.currentTimeMillis();
+        for (int i = 0; i < userCount; i++) {
+            users[i] = userRepository.save(
+                User.create("race_user" + i + "_" + timestamp + "@example.com", "password123")
+            );
+        }
+
+        // When: 500명이 동시에 10개 쿠폰 발급 요청 (경쟁률 50:1)
+        // 최대 동시성을 위해 ThreadPool 크기를 크게 설정
+        ExecutorService executorService = Executors.newFixedThreadPool(250);
+        CountDownLatch latch = new CountDownLatch(userCount);
+
+        AtomicInteger successCount = new AtomicInteger(0);
+        AtomicInteger failureCount = new AtomicInteger(0);
+
+        long startTime = System.currentTimeMillis();
+
+        for (int i = 0; i < userCount; i++) {
+            final int userIndex = i;
+            executorService.submit(() -> {
+                try {
+                    couponService.issueCoupon(users[userIndex].id(), limitedCoupon.id());
+                    successCount.incrementAndGet();
+                } catch (BusinessException e) {
+                    failureCount.incrementAndGet();
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+
+        latch.await();
+        executorService.shutdown();
+
+        long endTime = System.currentTimeMillis();
+        long duration = endTime - startTime;
+
+        // Then: 정확히 10명만 성공
+        assertThat(successCount.get()).isEqualTo(couponQuantity);
+        assertThat(failureCount.get()).isEqualTo(userCount - couponQuantity);
+
+        // Then: DB에 UserCoupon이 10개만 생성됨
+        long userCouponCount = userCouponRepository.findAllByCouponId(limitedCoupon.id()).size();
+        assertThat(userCouponCount).isEqualTo(couponQuantity);
+
+        // Then: 쿠폰 수량 확인
+        Coupon updatedCoupon = couponRepository.findById(limitedCoupon.id()).orElseThrow();
+        assertThat(updatedCoupon.availableQuantity()).isEqualTo(0);
+
+        // 성능 로그 출력
+        System.out.println("===========================================");
+        System.out.println("초고경쟁 동시성 테스트 결과 (경쟁률 50:1)");
+        System.out.println("===========================================");
+        System.out.println("총 요청 수: " + userCount + "명");
+        System.out.println("쿠폰 수량: " + couponQuantity + "개");
+        System.out.println("경쟁률: " + (userCount / couponQuantity) + ":1");
+        System.out.println("성공: " + successCount.get() + "명");
+        System.out.println("실패: " + failureCount.get() + "명");
+        System.out.println("실행 시간: " + duration + "ms (" + (duration / 1000.0) + "초)");
+        System.out.println("TPS: " + (userCount * 1000.0 / duration) + " 요청/초");
+        System.out.println("===========================================");
+    }
+
+    @Test
+    @DisplayName("성공: 쿠폰 사용 후 복구 시 재발급 가능")
     void canReissueCouponAfterUseAndRestore() {
         // Given: 쿠폰 생성
         Coupon coupon = couponRepository.save(
