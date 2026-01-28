@@ -13,9 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.test.context.ActiveProfiles;
 
 import kr.hhplus.be.server.application.order.dto.request.OrderCreateRequest;
 import kr.hhplus.be.server.application.order.facade.OrderFacade;
@@ -34,9 +32,7 @@ import kr.hhplus.be.server.support.exception.BusinessException;
 import java.util.List;
 import java.util.Set;
 
-@SpringBootTest
-@ActiveProfiles("test")
-public class PaymentRaceConditionIntegrationTest {
+public class PaymentRaceConditionIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private OrderFacade orderFacade;

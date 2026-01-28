@@ -15,9 +15,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.test.context.ActiveProfiles;
 
 import kr.hhplus.be.server.application.order.dto.request.OrderCreateRequest;
 import kr.hhplus.be.server.application.order.facade.OrderFacade;
@@ -31,9 +29,7 @@ import kr.hhplus.be.server.domain.user.entity.User;
 import kr.hhplus.be.server.domain.user.repository.UserRepository;
 import kr.hhplus.be.server.support.exception.BusinessException;
 
-@SpringBootTest
-@ActiveProfiles("test")
-public class PaymentDuplicatePreventionTest {
+public class PaymentDuplicatePreventionTest extends BaseIntegrationTest {
 
     @Autowired
     private OrderFacade orderFacade;

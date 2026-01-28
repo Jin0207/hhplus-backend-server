@@ -15,13 +15,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.test.context.ActiveProfiles;
 
 import kr.hhplus.be.server.application.order.dto.request.OrderCreateRequest;
-import kr.hhplus.be.server.config.TestConfig;
 import kr.hhplus.be.server.application.order.dto.response.OrderResponse;
 import kr.hhplus.be.server.application.order.facade.OrderFacade;
 import kr.hhplus.be.server.application.point.service.PointService;
@@ -40,10 +36,7 @@ import kr.hhplus.be.server.support.exception.ErrorCode;
  * Idempotency Key 중복 요청 테스트
  * 동일한 idempotencyKey로 여러 번 요청 시 한 번만 처리되는지 확인
  */
-@SpringBootTest
-@ActiveProfiles("test")
-@Import(TestConfig.class)
-class IdempotencyKeyIntegrationTest {
+class IdempotencyKeyIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private OrderFacade orderFacade;

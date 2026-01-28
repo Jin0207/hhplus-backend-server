@@ -9,16 +9,13 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
 
 import kr.hhplus.be.server.application.order.dto.request.OrderCreateRequest;
 import kr.hhplus.be.server.application.order.dto.request.OrderCreateRequest.OrderItem;
 import kr.hhplus.be.server.application.order.dto.response.OrderResponse;
 import kr.hhplus.be.server.application.order.facade.OrderFacade;
 import kr.hhplus.be.server.application.point.service.PointService;
-import kr.hhplus.be.server.config.TestConfig;
+import kr.hhplus.be.server.integration.BaseIntegrationTest;
 import kr.hhplus.be.server.domain.outbox.entity.OutBoxMessage;
 import kr.hhplus.be.server.domain.outbox.repository.OutBoxMessageRepository;
 import kr.hhplus.be.server.domain.product.entity.Product;
@@ -28,10 +25,7 @@ import kr.hhplus.be.server.domain.product.repository.ProductRepository;
 import kr.hhplus.be.server.domain.user.entity.User;
 import kr.hhplus.be.server.domain.user.repository.UserRepository;
 
-@SpringBootTest
-@ActiveProfiles("test")
-@Import(TestConfig.class)
-class OrderIntegrationTest {
+class OrderIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private OrderFacade orderFacade;

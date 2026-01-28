@@ -13,15 +13,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.SpyBean;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
 
 import kr.hhplus.be.server.application.order.dto.request.OrderCreateRequest;
 import kr.hhplus.be.server.application.order.dto.response.OrderResponse;
 import kr.hhplus.be.server.application.order.facade.OrderFacade;
-import kr.hhplus.be.server.config.TestConfig;
 import kr.hhplus.be.server.application.point.service.PointService;
 import kr.hhplus.be.server.domain.message.MessageProducer;
 import kr.hhplus.be.server.domain.outbox.entity.OutBoxMessage;
@@ -39,10 +35,7 @@ import kr.hhplus.be.server.infrastructure.outbox.OutboxProcessor;
  * - 외부 메시지 전송 실패 시 Outbox에 저장되는지 확인
  * - Outbox 메시지 재처리 테스트
  */
-@SpringBootTest
-@ActiveProfiles("test")
-@Import(TestConfig.class)
-class OutboxMessageIntegrationTest {
+class OutboxMessageIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private OrderFacade orderFacade;

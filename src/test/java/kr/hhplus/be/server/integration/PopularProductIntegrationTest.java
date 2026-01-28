@@ -12,16 +12,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import kr.hhplus.be.server.application.order.dto.request.OrderCreateRequest;
 import kr.hhplus.be.server.application.order.facade.OrderFacade;
 import kr.hhplus.be.server.application.point.service.PointService;
 import kr.hhplus.be.server.application.product.service.ProductService;
-import kr.hhplus.be.server.config.TestConfig;
 import kr.hhplus.be.server.domain.product.entity.PopularProduct;
 import kr.hhplus.be.server.domain.product.entity.Product;
 import kr.hhplus.be.server.domain.product.enums.ProductCategory;
@@ -36,10 +32,7 @@ import kr.hhplus.be.server.presentation.product.dto.response.PopularProductRespo
 /**
  * 인기 상품 배치 집계 통합 테스트
  */
-@SpringBootTest
-@ActiveProfiles("test")
-@Import(TestConfig.class)
-class PopularProductIntegrationTest {
+class PopularProductIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private PopularProductScheduler popularProductScheduler;

@@ -12,13 +12,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.test.context.ActiveProfiles;
 
 import kr.hhplus.be.server.application.coupon.service.CouponService;
-import kr.hhplus.be.server.config.TestConfig;
 import kr.hhplus.be.server.domain.coupon.entity.Coupon;
 import kr.hhplus.be.server.domain.coupon.entity.UserCoupon;
 import kr.hhplus.be.server.domain.coupon.enums.CouponStatus;
@@ -34,10 +30,7 @@ import kr.hhplus.be.server.support.exception.BusinessException;
  * 쿠폰 발급 경쟁 조건(Race Condition) 테스트
  * 선착순 쿠폰 발급 시 동시 요청에서 한 사용자만 성공하는지 확인
  */
-@SpringBootTest
-@ActiveProfiles("test")
-@Import(TestConfig.class)
-class CouponRaceConditionIntegrationTest {
+class CouponRaceConditionIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private CouponService couponService;
