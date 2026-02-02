@@ -1,12 +1,17 @@
 package kr.hhplus.be.server.application.product.service;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import kr.hhplus.be.server.application.common.response.PageResponse;
 import kr.hhplus.be.server.application.product.dto.request.ProductSearchCommand;
@@ -29,6 +34,11 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final PopularProductRepository popularProductRepository;
+    private final RedisTemplate<String, Object> redisTemplate;
+    private final ObjectMapper objectMapper;
+
+    public static final String POPULAR_PRODUCTS_CACHE_KEY = "cache:popular-products";
+    public static final long POPULAR_PRODUCTS_CACHE_TTL_HOURS = 25;
     
     /**
      * 상품 단건 검색
@@ -138,27 +148,84 @@ public class ProductService {
 
     /**
      * 인기 상품 조회 (최근 3일 기준 상위 5개)
-     * - 우선: 캐시 테이블(popular_products)에서 조회
-     * - Fallback: 캐시가 없으면 실시간 집계
+     * - 1차: Redis 캐시 (Cache-Aside)
+     * - 2차: DB 캐시 테이블 (popular_products)
+     * - 3차: 실시간 집계 (Fallback)
      */
     public List<PopularProductResponse> findPopularProducts() {
-        // 1. 캐시 테이블에서 최신 데이터 조회
-        List<PopularProduct> cachedProducts = popularProductRepository.findLatest();
-
-        if (!cachedProducts.isEmpty()) {
-            log.debug("[인기상품] 캐시 테이블 조회: {} 건", cachedProducts.size());
-            return cachedProducts.stream()
-                .map(PopularProductResponse::from)
-                .toList();
+        // 1. Redis 캐시 조회
+        List<PopularProductResponse> redisCached = getFromRedisCache();
+        if (redisCached != null) {
+            log.debug("[인기상품] Redis 캐시 Hit: {} 건", redisCached.size());
+            return redisCached;
         }
 
-        // 2. 캐시가 없으면 실시간 조회 (fallback)
+        // 2. DB 캐시 테이블에서 조회
+        List<PopularProduct> cachedProducts = popularProductRepository.findLatest();
+        if (!cachedProducts.isEmpty()) {
+            log.debug("[인기상품] DB 캐시 테이블 조회: {} 건", cachedProducts.size());
+            List<PopularProductResponse> response = cachedProducts.stream()
+                .map(PopularProductResponse::from)
+                .toList();
+            putToRedisCache(response);
+            return response;
+        }
+
+        // 3. 실시간 조회 (fallback)
         log.debug("[인기상품] 캐시 없음, 실시간 조회");
         List<Product> popularProducts = productRepository.findPopularProducts();
-
-        return popularProducts.stream()
+        List<PopularProductResponse> response = popularProducts.stream()
             .map(PopularProductResponse::from)
             .toList();
+        if (!response.isEmpty()) {
+            putToRedisCache(response);
+        }
+        return response;
+    }
+
+    /**
+     * Redis 캐시에서 인기상품 조회
+     */
+    private List<PopularProductResponse> getFromRedisCache() {
+        try {
+            Object cached = redisTemplate.opsForValue().get(POPULAR_PRODUCTS_CACHE_KEY);
+            if (cached == null) {
+                return null;
+            }
+            return objectMapper.convertValue(cached, new TypeReference<List<PopularProductResponse>>() {});
+        } catch (Exception e) {
+            log.warn("[인기상품] Redis 캐시 조회 실패, DB fallback", e);
+            return null;
+        }
+    }
+
+    /**
+     * Redis 캐시에 인기상품 저장
+     */
+    public void putToRedisCache(List<PopularProductResponse> response) {
+        try {
+            redisTemplate.opsForValue().set(
+                POPULAR_PRODUCTS_CACHE_KEY,
+                response,
+                POPULAR_PRODUCTS_CACHE_TTL_HOURS,
+                TimeUnit.HOURS
+            );
+            log.debug("[인기상품] Redis 캐시 저장: {} 건, TTL={}h", response.size(), POPULAR_PRODUCTS_CACHE_TTL_HOURS);
+        } catch (Exception e) {
+            log.warn("[인기상품] Redis 캐시 저장 실패", e);
+        }
+    }
+
+    /**
+     * Redis 캐시 삭제 (배치 갱신 시 사용)
+     */
+    public void evictRedisCache() {
+        try {
+            redisTemplate.delete(POPULAR_PRODUCTS_CACHE_KEY);
+            log.debug("[인기상품] Redis 캐시 삭제");
+        } catch (Exception e) {
+            log.warn("[인기상품] Redis 캐시 삭제 실패", e);
+        }
     }
     
 }

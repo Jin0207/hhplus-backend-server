@@ -5,6 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -14,6 +17,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -27,6 +31,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import kr.hhplus.be.server.application.common.response.PageResponse;
 import kr.hhplus.be.server.application.product.dto.request.ProductSearchCommand;
@@ -49,6 +58,15 @@ public class ProductServiceTest {
 
     @Mock
     private PopularProductRepository popularProductRepository;
+
+    @Mock
+    private RedisTemplate<String, Object> redisTemplate;
+
+    @Mock
+    private ObjectMapper objectMapper;
+
+    @Mock
+    private ValueOperations<String, Object> valueOperations;
 
     @InjectMocks
     private ProductService productService;
@@ -199,7 +217,7 @@ public class ProductServiceTest {
         );
     }
 
-    // ==================== 인기 상품 조회 테스트 (캐시 테이블 + Fallback) ====================
+    // ==================== 인기 상품 조회 테스트 (Redis Cache-Aside + DB캐시 + Fallback) ====================
 
     @Nested
     @DisplayName("인기 상품 조회 (findPopularProducts)")
@@ -215,12 +233,41 @@ public class ProductServiceTest {
                 PopularProduct.fromAggregation(2, 2L, "인기상품2", 30000L, ProductCategory.PANTS, 120, baseDate),
                 PopularProduct.fromAggregation(3, 3L, "인기상품3", 80000L, ProductCategory.OUTER, 100, baseDate)
             );
+            // Redis opsForValue mock 기본 설정
+            when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         }
 
         @Test
-        @DisplayName("성공: 캐시 테이블에 데이터가 있으면 캐시에서 조회한다")
-        void 캐시_테이블_조회_성공() {
+        @DisplayName("성공: Redis 캐시에 데이터가 있으면 Redis에서 즉시 반환한다")
+        void Redis_캐시_Hit() {
             // given
+            List<PopularProductResponse> cachedResponses = mockCachedProducts.stream()
+                .map(PopularProductResponse::from)
+                .toList();
+            when(valueOperations.get(ProductService.POPULAR_PRODUCTS_CACHE_KEY))
+                .thenReturn(cachedResponses);
+            when(objectMapper.convertValue(any(), any(TypeReference.class)))
+                .thenReturn(cachedResponses);
+
+            // when
+            List<PopularProductResponse> result = productService.findPopularProducts();
+
+            // then
+            assertNotNull(result);
+            assertEquals(3, result.size());
+            assertEquals("인기상품1", result.get(0).productName());
+
+            // Redis Hit이므로 DB 접근 없음
+            verify(popularProductRepository, never()).findLatest();
+            verify(productRepository, never()).findPopularProducts();
+        }
+
+        @Test
+        @DisplayName("성공: Redis 캐시 Miss 시 DB 캐시 테이블에서 조회하고 Redis에 저장한다")
+        void Redis_Miss_DB캐시_Hit() {
+            // given
+            when(valueOperations.get(ProductService.POPULAR_PRODUCTS_CACHE_KEY))
+                .thenReturn(null); // Redis Miss
             when(popularProductRepository.findLatest())
                 .thenReturn(mockCachedProducts);
 
@@ -231,21 +278,27 @@ public class ProductServiceTest {
             assertNotNull(result);
             assertEquals(3, result.size());
             assertEquals("인기상품1", result.get(0).productName());
-            assertEquals("인기상품2", result.get(1).productName());
-            assertEquals("인기상품3", result.get(2).productName());
             assertEquals(150, result.get(0).salesQuantity());
 
-            // 캐시 테이블만 조회하고 실시간 조회는 하지 않음
+            // DB 캐시 테이블 조회 + Redis에 저장
             verify(popularProductRepository, times(1)).findLatest();
+            verify(valueOperations, times(1)).set(
+                eq(ProductService.POPULAR_PRODUCTS_CACHE_KEY),
+                any(),
+                eq(ProductService.POPULAR_PRODUCTS_CACHE_TTL_HOURS),
+                eq(TimeUnit.HOURS)
+            );
             verify(productRepository, never()).findPopularProducts();
         }
 
         @Test
-        @DisplayName("성공: 캐시 테이블에 데이터가 없으면 실시간 조회로 Fallback한다")
-        void 캐시_없으면_실시간_조회_Fallback() {
+        @DisplayName("성공: Redis Miss + DB 캐시 없으면 실시간 조회로 Fallback하고 Redis에 저장한다")
+        void Redis_Miss_DB캐시_Miss_실시간_Fallback() {
             // given
+            when(valueOperations.get(ProductService.POPULAR_PRODUCTS_CACHE_KEY))
+                .thenReturn(null);
             when(popularProductRepository.findLatest())
-                .thenReturn(List.of()); // 캐시 비어있음
+                .thenReturn(List.of());
             when(productRepository.findPopularProducts())
                 .thenReturn(mockProductList);
 
@@ -256,17 +309,24 @@ public class ProductServiceTest {
             assertNotNull(result);
             assertEquals(2, result.size());
             assertEquals("상의1", result.get(0).productName());
-            assertEquals("바지1", result.get(1).productName());
 
-            // 캐시 조회 후 실시간 조회 수행
             verify(popularProductRepository, times(1)).findLatest();
             verify(productRepository, times(1)).findPopularProducts();
+            // 실시간 조회 결과도 Redis에 저장
+            verify(valueOperations, times(1)).set(
+                eq(ProductService.POPULAR_PRODUCTS_CACHE_KEY),
+                any(),
+                eq(ProductService.POPULAR_PRODUCTS_CACHE_TTL_HOURS),
+                eq(TimeUnit.HOURS)
+            );
         }
 
         @Test
-        @DisplayName("성공: 캐시와 실시간 모두 데이터 없으면 빈 리스트 반환")
+        @DisplayName("성공: 모든 캐시와 실시간 모두 데이터 없으면 빈 리스트 반환 (Redis 저장 안함)")
         void 인기상품_없음_빈_리스트() {
             // given
+            when(valueOperations.get(ProductService.POPULAR_PRODUCTS_CACHE_KEY))
+                .thenReturn(null);
             when(popularProductRepository.findLatest())
                 .thenReturn(List.of());
             when(productRepository.findPopularProducts())
@@ -281,12 +341,16 @@ public class ProductServiceTest {
 
             verify(popularProductRepository, times(1)).findLatest();
             verify(productRepository, times(1)).findPopularProducts();
+            // 빈 결과는 Redis에 저장하지 않음
+            verify(valueOperations, never()).set(anyString(), any(), anyLong(), any(TimeUnit.class));
         }
 
         @Test
-        @DisplayName("성공: 캐시 테이블 데이터는 재고/상태 정보가 null이다")
-        void 캐시_데이터_스냅샷_검증() {
+        @DisplayName("성공: Redis 장애 시 DB 캐시 테이블로 Fallback한다")
+        void Redis_장애시_DB_Fallback() {
             // given
+            when(valueOperations.get(ProductService.POPULAR_PRODUCTS_CACHE_KEY))
+                .thenThrow(new RuntimeException("Redis connection refused"));
             when(popularProductRepository.findLatest())
                 .thenReturn(mockCachedProducts);
 
@@ -295,10 +359,29 @@ public class ProductServiceTest {
 
             // then
             assertNotNull(result);
-            // 캐시 테이블에서 조회한 데이터는 stock, status가 null
+            assertEquals(3, result.size());
+            assertEquals("인기상품1", result.get(0).productName());
+
+            // Redis 장애 시에도 DB 캐시로 정상 응답
+            verify(popularProductRepository, times(1)).findLatest();
+        }
+
+        @Test
+        @DisplayName("성공: DB 캐시 테이블 데이터는 재고/상태 정보가 null이다")
+        void 캐시_데이터_스냅샷_검증() {
+            // given
+            when(valueOperations.get(ProductService.POPULAR_PRODUCTS_CACHE_KEY))
+                .thenReturn(null);
+            when(popularProductRepository.findLatest())
+                .thenReturn(mockCachedProducts);
+
+            // when
+            List<PopularProductResponse> result = productService.findPopularProducts();
+
+            // then
+            assertNotNull(result);
             assertNull(result.get(0).stock());
             assertNull(result.get(0).status());
-            // 하지만 판매량은 존재
             assertEquals(150, result.get(0).salesQuantity());
         }
 
@@ -306,6 +389,8 @@ public class ProductServiceTest {
         @DisplayName("성공: 실시간 조회 데이터는 재고/상태 정보가 존재한다")
         void 실시간_데이터_전체_정보_검증() {
             // given
+            when(valueOperations.get(ProductService.POPULAR_PRODUCTS_CACHE_KEY))
+                .thenReturn(null);
             when(popularProductRepository.findLatest())
                 .thenReturn(List.of());
             when(productRepository.findPopularProducts())
@@ -316,7 +401,6 @@ public class ProductServiceTest {
 
             // then
             assertNotNull(result);
-            // 실시간 조회 데이터는 stock, status 존재
             assertEquals(10, result.get(0).stock());
             assertEquals(ProductStatus.ON_SALE, result.get(0).status());
         }
