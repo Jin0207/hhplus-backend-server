@@ -25,7 +25,7 @@ import lombok.NoArgsConstructor;
 @Table(
     name = "popular_products",
     uniqueConstraints = {
-        @UniqueConstraint(name = "uk_base_date_rank", columnNames = {"base_date", "rank"})
+        @UniqueConstraint(name = "uk_base_date_rank", columnNames = {"base_date", "`rank`"})
     },
     indexes = {
         @Index(name = "idx_base_date", columnList = "base_date")
@@ -41,7 +41,7 @@ public class PopularProductEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "rank", nullable = false)
+    @Column(name = "`rank`", nullable = false)
     private Integer rank;
 
     @Column(name = "product_id", nullable = false)

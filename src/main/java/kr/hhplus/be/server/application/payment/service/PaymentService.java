@@ -24,7 +24,10 @@ public class PaymentService {
     /**
      * 멱등성 검사 (Redis 분산 락 사용)
      * 결제상태가 COMPLETED/PENDING/FAILED 상태인 경우 여기서 예외를 던져서 상위 로직 실행을 차단
+     *
+     * @deprecated 분산락은 AOP로 처리하므로 checkIdempotencyKeyInDb 사용 권장
      */
+    @Deprecated
     public void checkForIdempotencyKey(String idempotencyKey) {
         String lockKey = "payment:idempotency:" + idempotencyKey;
 
@@ -50,18 +53,26 @@ public class PaymentService {
         }
 
         // DB에서도 확인 (Redis 락 이후 이중 체크)
+        checkIdempotencyKeyInDb(idempotencyKey);
+    }
+
+    /**
+     * DB에서만 멱등성 키 검증 (분산락은 AOP에서 처리)
+     * 이미 처리된 결제인지 DB 상태로 확인
+     */
+    public void checkIdempotencyKeyInDb(String idempotencyKey) {
         var existingPayment = paymentRepository.findByIdempotencyKey(idempotencyKey);
         if (existingPayment.isPresent()) {
             Payment payment = existingPayment.get();
             PaymentStatus currentStatus = payment.status();
 
-            if(currentStatus == PaymentStatus.COMPLETED){
+            if (currentStatus == PaymentStatus.COMPLETED) {
                 // 이미 처리된 결제
                 throw new BusinessException(ErrorCode.PAYMENT_ALREADY_PROCESSED);
-            }else if(currentStatus == PaymentStatus.PENDING){
+            } else if (currentStatus == PaymentStatus.PENDING) {
                 // 기존 결제상태 '완료'가 아닌 경우 중복 요청으로 간주
                 throw new BusinessException(ErrorCode.DUPLICATE_PAYMENT_REQUEST);
-            }else if(currentStatus == PaymentStatus.FAILED){
+            } else if (currentStatus == PaymentStatus.FAILED) {
                 // 실패한 결제의 멱등성 키는 재사용 불가
                 throw new BusinessException(ErrorCode.DUPLICATE_PAYMENT_REQUEST);
             }

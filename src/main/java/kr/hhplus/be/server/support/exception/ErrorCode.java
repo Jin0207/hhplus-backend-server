@@ -50,7 +50,11 @@ public enum ErrorCode {
     PRODUCT_NOT_FOUND("E500", "상품을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     PRODUCT_OUT_OF_STOCK("E501", "상품이 품절되었습니다.", HttpStatus.BAD_REQUEST),
     PRODUCT_INACTIVE("E502", "판매 종료된 상품입니다.", HttpStatus.BAD_REQUEST),
-    PRODUCT_PRICE_RANGE_INVALID("E503", "가격 범위가 올바르지 않습니다.", HttpStatus.BAD_REQUEST);
+    PRODUCT_PRICE_RANGE_INVALID("E503", "가격 범위가 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
+
+    // 분산락 관련 에러 (E600 ~ E699)
+    LOCK_ACQUISITION_FAILED("E600", "락 획득에 실패했습니다. 잠시 후 다시 시도해주세요.", HttpStatus.TOO_MANY_REQUESTS),
+    LOCK_TIMEOUT("E601", "락 대기 시간이 초과되었습니다.", HttpStatus.TOO_MANY_REQUESTS);
 
     private final String code;
     private final String message;

@@ -15,13 +15,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.test.context.ActiveProfiles;
 
 import kr.hhplus.be.server.application.order.dto.request.OrderCreateRequest;
-import kr.hhplus.be.server.config.TestConfig;
 import kr.hhplus.be.server.application.order.dto.response.OrderResponse;
 import kr.hhplus.be.server.application.order.facade.OrderFacade;
 import kr.hhplus.be.server.application.point.service.PointService;
@@ -40,10 +36,7 @@ import kr.hhplus.be.server.support.exception.ErrorCode;
  * Idempotency Key 중복 요청 테스트
  * 동일한 idempotencyKey로 여러 번 요청 시 한 번만 처리되는지 확인
  */
-@SpringBootTest
-@ActiveProfiles("test")
-@Import(TestConfig.class)
-class IdempotencyKeyIntegrationTest {
+class IdempotencyKeyIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private OrderFacade orderFacade;
@@ -192,8 +185,10 @@ class IdempotencyKeyIntegrationTest {
                     orderFacade.completeOrder(testUser.id(), orderRequest);
                     successCount.incrementAndGet();
                 } catch (BusinessException e) {
+                    // 분산락 실패, 이미 처리됨, 중복 요청 모두 실패로 카운트
                     if (e.getErrorCode() == ErrorCode.PAYMENT_ALREADY_PROCESSED ||
-                        e.getErrorCode() == ErrorCode.DUPLICATE_PAYMENT_REQUEST) {
+                        e.getErrorCode() == ErrorCode.DUPLICATE_PAYMENT_REQUEST ||
+                        e.getErrorCode() == ErrorCode.LOCK_ACQUISITION_FAILED) {
                         failureCount.incrementAndGet();
                     }
                 } finally {
@@ -215,8 +210,8 @@ class IdempotencyKeyIntegrationTest {
     }
 
     @Test
-    @DisplayName("✅ 실패한 결제의 idempotencyKey는 재사용 불가")
-    void failedPaymentIdempotencyKeyCannotBeReused() {
+    @DisplayName("✅ 실패한 결제의 idempotencyKey는 재시도 가능 (포인트 충전 후)")
+    void failedPaymentIdempotencyKeyCanBeRetried() {
         // Given: 포인트 부족 상황 (실패하도록 설정, 타임스탬프로 고유성 보장)
         long timestamp = System.currentTimeMillis();
         User poorUser = userRepository.save(User.create("poor_" + timestamp + "@example.com", "password123"));
@@ -244,17 +239,22 @@ class IdempotencyKeyIntegrationTest {
         // When: 포인트 충전 후 동일한 idempotencyKey로 재시도
         pointService.chargePoint(poorUser.id(), 200000L, "추가 충전");
 
-        // Then: 동일한 idempotencyKey 재사용 불가
+        // Then: 이전에 실패한 idempotencyKey로 재시도 성공
+        // 실패한 결제는 롤백되어 idempotencyKey가 저장되지 않으므로 재사용 가능
+        OrderResponse response = orderFacade.completeOrder(poorUser.id(), orderRequest);
+        assertThat(response).isNotNull();
+        assertThat(response.orderId()).isNotNull();
+
+        // Then: 성공 후 동일 idempotencyKey로 재시도 시 예외 발생
         BusinessException exception = org.junit.jupiter.api.Assertions.assertThrows(
             BusinessException.class,
             () -> orderFacade.completeOrder(poorUser.id(), orderRequest)
         );
 
-        // 실패 케이스에 따라 다른 에러코드가 발생할 수 있음
         assertThat(exception.getErrorCode()).isIn(
             ErrorCode.DUPLICATE_PAYMENT_REQUEST,
             ErrorCode.PAYMENT_ALREADY_PROCESSED,
-            ErrorCode.POINT_BALANCE_INSUFFICIENT // 포인트 부족으로 실패할 수도 있음
+            ErrorCode.LOCK_ACQUISITION_FAILED
         );
     }
 

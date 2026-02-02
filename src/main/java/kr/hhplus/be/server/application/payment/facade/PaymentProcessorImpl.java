@@ -25,11 +25,22 @@ public class PaymentProcessorImpl implements PaymentProcessor{
     private final PaymentService paymentService;
     
     /**
-     * 멱등성 키 검증
+     * 멱등성 키 검증 (Redis 분산락 + DB 검증)
+     * @deprecated 분산락은 AOP로 처리하므로 validateIdempotencyKeyInDb 사용 권장
      */
     @Override
+    @Deprecated
     public void validateIdempotencyKey(String idempotencyKey) {
         paymentService.checkForIdempotencyKey(idempotencyKey);
+    }
+
+    /**
+     * DB에서만 멱등성 키 검증
+     * 분산락은 @WithDistributedLock AOP에서 처리
+     */
+    @Override
+    public void validateIdempotencyKeyInDb(String idempotencyKey) {
+        paymentService.checkIdempotencyKeyInDb(idempotencyKey);
     }
     
     /**

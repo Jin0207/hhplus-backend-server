@@ -59,7 +59,7 @@ class OrderFacadeTest {
         PaymentResult paymentResult = PaymentResult.success("tx-123");
         OrderResponse expectedResponse = createOrderResponse();
         
-        doNothing().when(paymentProcessor).validateIdempotencyKey(request.idempotencyKey());
+        doNothing().when(paymentProcessor).validateIdempotencyKeyInDb(request.idempotencyKey());
         when(orderTransactionManager.initializeOrder(userId, request)).thenReturn(orderData);
         when(paymentProcessor.processPayment(orderData.payment(), request)).thenReturn(paymentResult);
         when(orderTransactionManager.completeOrder(orderData, paymentResult)).thenReturn(expectedResponse);
@@ -79,7 +79,7 @@ class OrderFacadeTest {
         assertThat(response.payment().status()).isEqualTo(PaymentStatus.COMPLETED.name());
         assertThat(response.items()).hasSize(2);
         
-        verify(paymentProcessor).validateIdempotencyKey(request.idempotencyKey());
+        verify(paymentProcessor).validateIdempotencyKeyInDb(request.idempotencyKey());
         verify(orderTransactionManager).initializeOrder(userId, request);
         verify(paymentProcessor).processPayment(orderData.payment(), request);
         verify(orderTransactionManager).completeOrder(orderData, paymentResult);
@@ -93,7 +93,7 @@ class OrderFacadeTest {
         OrderCreateRequest request = createOrderRequest();
         
         doThrow(new BusinessException(ErrorCode.DUPLICATE_PAYMENT_REQUEST))
-            .when(paymentProcessor).validateIdempotencyKey(request.idempotencyKey());
+            .when(paymentProcessor).validateIdempotencyKeyInDb(request.idempotencyKey());
         
         // when & then
         assertThatThrownBy(() -> orderFacade.completeOrder(userId, request))
@@ -120,7 +120,7 @@ class OrderFacadeTest {
             .isInstanceOf(BusinessException.class)
             .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ORDER_STOCK_INSUFFICIENT);
         
-        verify(paymentProcessor).validateIdempotencyKey(request.idempotencyKey());
+        verify(paymentProcessor).validateIdempotencyKeyInDb(request.idempotencyKey());
         verify(paymentProcessor, never()).processPayment(any(), any());
         verify(orderTransactionManager, never()).completeOrder(any(), any());
     }
@@ -132,7 +132,7 @@ class OrderFacadeTest {
         Long userId = 1L;
         OrderCreateRequest request = createOrderRequest();
         
-        doNothing().when(paymentProcessor).validateIdempotencyKey(request.idempotencyKey());
+        doNothing().when(paymentProcessor).validateIdempotencyKeyInDb(request.idempotencyKey());
         when(orderTransactionManager.initializeOrder(userId, request))
             .thenThrow(new BusinessException(ErrorCode.POINT_BALANCE_INSUFFICIENT));
         
@@ -153,7 +153,7 @@ class OrderFacadeTest {
         OrderAndPayment orderData = createOrderAndPayment();
         PaymentResult paymentResult = PaymentResult.fail("결제 한도 초과");
         
-        doNothing().when(paymentProcessor).validateIdempotencyKey(request.idempotencyKey());
+        doNothing().when(paymentProcessor).validateIdempotencyKeyInDb(request.idempotencyKey());
         when(orderTransactionManager.initializeOrder(userId, request)).thenReturn(orderData);
         when(paymentProcessor.processPayment(orderData.payment(), request)).thenReturn(paymentResult);
         
@@ -173,7 +173,7 @@ class OrderFacadeTest {
         Long userId = 1L;
         OrderCreateRequest request = createOrderRequest();
         
-        doNothing().when(paymentProcessor).validateIdempotencyKey(request.idempotencyKey());
+        doNothing().when(paymentProcessor).validateIdempotencyKeyInDb(request.idempotencyKey());
         when(orderTransactionManager.initializeOrder(userId, request))
             .thenThrow(new BusinessException(ErrorCode.COUPON_NOT_FOUND));
         
@@ -192,7 +192,7 @@ class OrderFacadeTest {
         OrderAndPayment orderData = createOrderAndPayment();
         PaymentResult paymentResult = PaymentResult.success("tx-123");
         
-        doNothing().when(paymentProcessor).validateIdempotencyKey(request.idempotencyKey());
+        doNothing().when(paymentProcessor).validateIdempotencyKeyInDb(request.idempotencyKey());
         when(orderTransactionManager.initializeOrder(userId, request)).thenReturn(orderData);
         when(paymentProcessor.processPayment(orderData.payment(), request)).thenReturn(paymentResult);
         when(orderTransactionManager.completeOrder(orderData, paymentResult))
@@ -211,7 +211,7 @@ class OrderFacadeTest {
         Long userId = 1L;
         OrderCreateRequest request = createOrderRequest();
         
-        doNothing().when(paymentProcessor).validateIdempotencyKey(request.idempotencyKey());
+        doNothing().when(paymentProcessor).validateIdempotencyKeyInDb(request.idempotencyKey());
         when(orderTransactionManager.initializeOrder(userId, request))
             .thenThrow(new RuntimeException("예상치 못한 오류"));
         

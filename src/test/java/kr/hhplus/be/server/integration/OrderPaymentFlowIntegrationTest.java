@@ -9,12 +9,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
 
 import kr.hhplus.be.server.application.order.dto.request.OrderCreateRequest;
-import kr.hhplus.be.server.config.TestConfig;
 import kr.hhplus.be.server.application.order.dto.response.OrderResponse;
 import kr.hhplus.be.server.application.order.facade.OrderFacade;
 import kr.hhplus.be.server.application.point.service.PointService;
@@ -38,10 +34,7 @@ import kr.hhplus.be.server.domain.user.repository.UserRepository;
 /**
  * 주문 → 재고 차감 → 잔액 차감 → 주문 저장 → Outbox 저장 전체 플로우 통합 테스트
  */
-@SpringBootTest
-@ActiveProfiles("test")
-@Import(TestConfig.class)
-class OrderPaymentFlowIntegrationTest {
+class OrderPaymentFlowIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private OrderFacade orderFacade;

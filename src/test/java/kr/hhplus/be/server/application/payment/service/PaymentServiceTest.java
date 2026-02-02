@@ -185,6 +185,61 @@ class PaymentServiceTest {
             .hasFieldOrPropertyWithValue("errorCode", ErrorCode.DUPLICATE_PAYMENT_REQUEST);
     }
 
+    // ==================== DB 멱등성 검사 테스트 (AOP 분산락용) ====================
+
+    @Test
+    @DisplayName("성공: checkIdempotencyKeyInDb - DB에 결제 없음")
+    void checkIdempotencyKeyInDb_성공_DB에_결제_없음() {
+        // Given
+        String key = "NEW-KEY-FOR-DB-CHECK";
+        when(paymentRepository.findByIdempotencyKey(key)).thenReturn(Optional.empty());
+
+        // When & Then: 예외 발생하지 않음
+        paymentService.checkIdempotencyKeyInDb(key);
+
+        // Then: DB 조회 확인
+        verify(paymentRepository, times(1)).findByIdempotencyKey(key);
+    }
+
+    @Test
+    @DisplayName("실패: checkIdempotencyKeyInDb - DB에 COMPLETED 결제 존재")
+    void checkIdempotencyKeyInDb_실패_COMPLETED_결제_존재() {
+        // Given
+        String key = "COMPLETED-KEY";
+        when(paymentRepository.findByIdempotencyKey(key)).thenReturn(Optional.of(completedPayment));
+
+        // When & Then
+        assertThatThrownBy(() -> paymentService.checkIdempotencyKeyInDb(key))
+            .isInstanceOf(BusinessException.class)
+            .hasFieldOrPropertyWithValue("errorCode", ErrorCode.PAYMENT_ALREADY_PROCESSED);
+    }
+
+    @Test
+    @DisplayName("실패: checkIdempotencyKeyInDb - DB에 PENDING 결제 존재")
+    void checkIdempotencyKeyInDb_실패_PENDING_결제_존재() {
+        // Given
+        String key = "PENDING-KEY";
+        when(paymentRepository.findByIdempotencyKey(key)).thenReturn(Optional.of(pendingPayment));
+
+        // When & Then
+        assertThatThrownBy(() -> paymentService.checkIdempotencyKeyInDb(key))
+            .isInstanceOf(BusinessException.class)
+            .hasFieldOrPropertyWithValue("errorCode", ErrorCode.DUPLICATE_PAYMENT_REQUEST);
+    }
+
+    @Test
+    @DisplayName("실패: checkIdempotencyKeyInDb - DB에 FAILED 결제 존재")
+    void checkIdempotencyKeyInDb_실패_FAILED_결제_존재() {
+        // Given
+        String key = "FAILED-KEY";
+        when(paymentRepository.findByIdempotencyKey(key)).thenReturn(Optional.of(failedPayment));
+
+        // When & Then
+        assertThatThrownBy(() -> paymentService.checkIdempotencyKeyInDb(key))
+            .isInstanceOf(BusinessException.class)
+            .hasFieldOrPropertyWithValue("errorCode", ErrorCode.DUPLICATE_PAYMENT_REQUEST);
+    }
+
     // ==================== 결제 생성 테스트 ====================
 
     @Test
