@@ -15,6 +15,7 @@ import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -58,6 +59,9 @@ public class ProductServiceTest {
 
     @Mock
     private PopularProductRepository popularProductRepository;
+
+    @Mock
+    private ProductRankingService productRankingService;
 
     @Mock
     private RedisTemplate<String, Object> redisTemplate;
@@ -235,6 +239,8 @@ public class ProductServiceTest {
             );
             // Redis opsForValue mock 기본 설정
             when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+            // ProductRankingService 기본 설정 (L0 캐시 빈 리스트 반환 -> L1~L3로 Fallback)
+            when(productRankingService.getTopRankingProducts()).thenReturn(Collections.emptyList());
         }
 
         @Test

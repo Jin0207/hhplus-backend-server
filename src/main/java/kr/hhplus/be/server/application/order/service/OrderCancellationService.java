@@ -1,5 +1,6 @@
 package kr.hhplus.be.server.application.order.service;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -7,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import kr.hhplus.be.server.application.coupon.service.CouponService;
 import kr.hhplus.be.server.application.point.service.PointService;
+import kr.hhplus.be.server.application.product.service.ProductRankingService;
 import kr.hhplus.be.server.application.product.service.ProductService;
 import kr.hhplus.be.server.domain.order.entity.Order;
 import kr.hhplus.be.server.domain.order.entity.OrderDetail;
@@ -26,6 +28,7 @@ public class OrderCancellationService {
         private final PointService pointService;
         private final CouponService couponService;
         private final ProductService productService;
+        private final ProductRankingService productRankingService;
 
         /**
          * 주문 취소 및 보상 트랜잭션 처리
@@ -60,16 +63,22 @@ public class OrderCancellationService {
                 }
 
                 // 6. 재고 및 판매량 복구
+                // 주문 생성일 기준으로 Redis 랭킹 점수 감소 (날짜 정합성)
+                LocalDate orderDate = order.crtDttm().toLocalDate();
+
                 orderDetails.forEach(detail -> {
                         // 6-1. 재고 복구
                         productService.increaseStock(detail.productId(), detail.quantity());
                         log.info("[주문 취소] 재고 복구: productId={}, quantity={}",
                                 detail.productId(), detail.quantity());
 
-                        // 6-2. 판매량 감소
+                        // 6-2. 판매량 감소 (DB)
                         productService.decreaseSalesQuantity(detail.productId(), detail.quantity());
                         log.info("[주문 취소] 판매량 감소: productId={}, quantity={}",
                                 detail.productId(), detail.quantity());
+
+                        // 6-3. Redis 랭킹 점수 감소 (주문 생성일 기준)
+                        productRankingService.decrementSalesScore(detail.productId(), detail.quantity(), orderDate);
                 });
 
                 log.info("[주문 취소] 완료: orderId={}, 복구 항목={}",

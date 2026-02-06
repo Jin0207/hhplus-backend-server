@@ -34,6 +34,7 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final PopularProductRepository popularProductRepository;
+    private final ProductRankingService productRankingService;
     private final RedisTemplate<String, Object> redisTemplate;
     private final ObjectMapper objectMapper;
 
@@ -148,19 +149,29 @@ public class ProductService {
 
     /**
      * 인기 상품 조회 (최근 3일 기준 상위 5개)
-     * - 1차: Redis 캐시 (Cache-Aside)
-     * - 2차: DB 캐시 테이블 (popular_products)
-     * - 3차: 실시간 집계 (Fallback)
+     *
+     * 다단계 캐시 전략:
+     * - L0: Redis Sorted Set 실시간 랭킹 (ZREVRANGE) - 가장 빠름, 실시간 반영
+     * - L1: Redis 캐시 (Cache-Aside)
+     * - L2: DB 캐시 테이블 (popular_products)
+     * - L3: 실시간 집계 (Fallback)
      */
     public List<PopularProductResponse> findPopularProducts() {
-        // 1. Redis 캐시 조회
+        // L0. Redis Sorted Set 실시간 랭킹 조회
+        List<PopularProductResponse> rankingResult = productRankingService.getTopRankingProducts();
+        if (!rankingResult.isEmpty()) {
+            log.debug("[인기상품] Redis Sorted Set 랭킹 Hit: {} 건", rankingResult.size());
+            return rankingResult;
+        }
+
+        // L1. Redis 캐시 조회
         List<PopularProductResponse> redisCached = getFromRedisCache();
         if (redisCached != null) {
             log.debug("[인기상품] Redis 캐시 Hit: {} 건", redisCached.size());
             return redisCached;
         }
 
-        // 2. DB 캐시 테이블에서 조회
+        // L2. DB 캐시 테이블에서 조회
         List<PopularProduct> cachedProducts = popularProductRepository.findLatest();
         if (!cachedProducts.isEmpty()) {
             log.debug("[인기상품] DB 캐시 테이블 조회: {} 건", cachedProducts.size());
@@ -171,7 +182,7 @@ public class ProductService {
             return response;
         }
 
-        // 3. 실시간 조회 (fallback)
+        // L3. 실시간 조회 (fallback)
         log.debug("[인기상품] 캐시 없음, 실시간 조회");
         List<Product> popularProducts = productRepository.findPopularProducts();
         List<PopularProductResponse> response = popularProducts.stream()

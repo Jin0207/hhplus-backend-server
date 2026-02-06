@@ -19,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import kr.hhplus.be.server.application.coupon.service.CouponService;
 import kr.hhplus.be.server.application.point.service.PointService;
+import kr.hhplus.be.server.application.product.service.ProductRankingService;
 import kr.hhplus.be.server.application.product.service.ProductService;
 import kr.hhplus.be.server.domain.order.entity.Order;
 import kr.hhplus.be.server.domain.order.entity.OrderDetail;
@@ -42,6 +43,9 @@ public class OrderCancellationServiceTest {
 
     @Mock
     private ProductService productService;
+
+    @Mock
+    private ProductRankingService productRankingService;
 
     @InjectMocks
     private OrderCancellationService orderCancellationService;
