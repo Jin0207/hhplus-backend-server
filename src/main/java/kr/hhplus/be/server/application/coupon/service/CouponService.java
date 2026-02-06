@@ -1,6 +1,5 @@
 package kr.hhplus.be.server.application.coupon.service;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -30,46 +29,58 @@ public class CouponService {
     private final UserCouponRepository userCouponRepository;
     private final RedisTemplate<String, String> redisTemplate;
 
-    private static final String COUPON_ISSUE_KEY = "coupon:issue:";
+    private static final String COUPON_ISSUED_SET_KEY = "coupon:issued:";
+    private static final String COUPON_REQUEST_QUEUE_KEY = "coupon:request:";
     private static final String COUPON_QUANTITY_KEY = "coupon:quantity:";
 
     /**
      * 선착순 쿠폰 발급
+     *
+     * Redis 자료구조 활용:
+     * - Set (coupon:issued:{couponId}): 중복 발급 방지 (SADD 원자적 중복 체크)
+     * - Sorted Set (coupon:request:{couponId}): 선착순 대기열 (ZADD + ZRANK로 순위 기반 검증)
+     * - String (coupon:quantity:{couponId}): 최대 발급 수량 참조 (읽기 전용)
      */
     @Transactional
     public UserCouponResponse issueCoupon(Long userId, Long couponId) {
-        String issueKey = COUPON_ISSUE_KEY + couponId + ":user:" + userId;
+        String issuedSetKey = COUPON_ISSUED_SET_KEY + couponId;
+        String requestQueueKey = COUPON_REQUEST_QUEUE_KEY + couponId;
         String quantityKey = COUPON_QUANTITY_KEY + couponId;
+        String userIdStr = String.valueOf(userId);
 
-        // 1. Redis 중복 발급 체크
-        Boolean alreadyIssued = redisTemplate.opsForValue()
-            .setIfAbsent(issueKey, "1", Duration.ofDays(1));
-
-        if (Boolean.FALSE.equals(alreadyIssued)) {
+        // 1. 중복 발급 방지 (Set: SADD - 원자적 중복 체크)
+        Long added = redisTemplate.opsForSet().add(issuedSetKey, userIdStr);
+        if (added == null || added == 0) {
             throw new BusinessException(ErrorCode.COUPON_ALREADY_ISSUED);
         }
 
-        // 2. 쿠폰 조회 (비관적 락 사용 - 동시성 제어)
-        Coupon coupon = couponRepository.findByIdWithLock(couponId)
-            .orElseThrow(() -> new BusinessException(ErrorCode.COUPON_NOT_FOUND));
-
-        // 유효기간 및 상태 체크 (수량은 Redis에서 체크)
-        if (!coupon.isActive()) {
-            redisTemplate.delete(issueKey);
-            throw new BusinessException(ErrorCode.COUPON_NOT_AVAILABLE);
-        }
-
         try {
-            // 3. Redis 재고 차감
-            Long remainingQuantity = redisTemplate.opsForValue().decrement(quantityKey);
+            // 2. 선착순 대기열 등록 (Sorted Set: ZADD - score=timestamp로 요청 순서 기록)
+            redisTemplate.opsForZSet().add(requestQueueKey, userIdStr, (double) System.currentTimeMillis());
 
-            if (remainingQuantity == null || remainingQuantity < 0) {
-                // 재고 부족은 정상적인 실패이므로 issueKey만 삭제 (수량은 롤백하지 않음)
-                redisTemplate.delete(issueKey);
+            // 3. 순위 확인으로 선착순 검증 (Sorted Set: ZRANK - 0-based 순위)
+            Long rank = redisTemplate.opsForZSet().rank(requestQueueKey, userIdStr);
+            String quantityStr = redisTemplate.opsForValue().get(quantityKey);
+
+            if (rank == null || quantityStr == null) {
+                throw new BusinessException(ErrorCode.COUPON_ISSUE_FAILED);
+            }
+
+            long maxQuantity = Long.parseLong(quantityStr);
+            if (rank >= maxQuantity) {
                 throw new BusinessException(ErrorCode.COUPON_OUT_OF_STOCK);
             }
 
-            // 4. DB 처리 (UserCoupon 발급 및 쿠폰 수량 차감)
+            // 4. 쿠폰 조회 (비관적 락 - 동시성 제어)
+            Coupon coupon = couponRepository.findByIdWithLock(couponId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.COUPON_NOT_FOUND));
+
+            // 유효기간 및 상태 체크
+            if (!coupon.isActive()) {
+                throw new BusinessException(ErrorCode.COUPON_NOT_AVAILABLE);
+            }
+
+            // 5. DB 처리 (UserCoupon 발급 및 쿠폰 수량 차감)
             UserCoupon userCoupon = UserCoupon.issue(userId, couponId, coupon.validTo());
             UserCoupon savedUserCoupon = userCouponRepository.save(userCoupon);
 
@@ -77,32 +88,32 @@ public class CouponService {
             Coupon updatedCoupon = coupon.decreaseQuantity();
             couponRepository.save(updatedCoupon);
 
-            log.info("쿠폰 발급 성공: userId={}, couponId={}, remaining={}",
-                userId, couponId, remainingQuantity);
+            log.info("쿠폰 발급 성공: userId={}, couponId={}, rank={}",
+                userId, couponId, rank);
 
             return UserCouponResponse.from(savedUserCoupon, coupon);
 
         } catch (BusinessException e) {
-            if (e.getErrorCode() != ErrorCode.COUPON_OUT_OF_STOCK) {
-                rollbackRedis(quantityKey, issueKey);
-            }
+            rollbackRedis(issuedSetKey, requestQueueKey, userIdStr);
             throw e;
         } catch (Exception e) {
-            rollbackRedis(quantityKey, issueKey);
+            rollbackRedis(issuedSetKey, requestQueueKey, userIdStr);
             throw new BusinessException(ErrorCode.COUPON_ISSUE_FAILED, e);
         }
     }
 
     /**
-     * Redis 롤백 (재고 복구 및 발급 키 삭제)
+     * Redis 롤백 (Set에서 사용자 제거 + Sorted Set에서 대기열 제거)
      */
-    private void rollbackRedis(String quantityKey, String issueKey) {
+    private void rollbackRedis(String issuedSetKey, String requestQueueKey, String userIdStr) {
         try {
-            redisTemplate.opsForValue().increment(quantityKey);
-            redisTemplate.delete(issueKey);
-            log.warn("Redis 롤백 완료: quantityKey={}, issueKey={}", quantityKey, issueKey);
+            redisTemplate.opsForSet().remove(issuedSetKey, userIdStr);
+            redisTemplate.opsForZSet().remove(requestQueueKey, userIdStr);
+            log.warn("Redis 롤백 완료: issuedSetKey={}, requestQueueKey={}, userId={}",
+                issuedSetKey, requestQueueKey, userIdStr);
         } catch (Exception e) {
-            log.error("Redis 롤백 실패: quantityKey={}, issueKey={}", quantityKey, issueKey, e);
+            log.error("Redis 롤백 실패: issuedSetKey={}, requestQueueKey={}, userId={}",
+                issuedSetKey, requestQueueKey, userIdStr, e);
         }
     }
     /**
