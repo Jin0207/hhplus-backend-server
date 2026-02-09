@@ -8,9 +8,11 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import kr.hhplus.be.server.application.product.service.ProductService;
 import kr.hhplus.be.server.domain.product.entity.PopularProduct;
 import kr.hhplus.be.server.domain.product.repository.PopularProductRepository;
 import kr.hhplus.be.server.infrastructure.product.persistence.PopularProductCustomRepository;
+import kr.hhplus.be.server.presentation.product.dto.response.PopularProductResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -26,6 +28,7 @@ public class PopularProductScheduler {
 
     private final PopularProductRepository popularProductRepository;
     private final PopularProductCustomRepository popularProductCustomRepository;
+    private final ProductService productService;
 
     @Value("${popular-product.top-count:5}")
     private int topCount;
@@ -71,7 +74,14 @@ public class PopularProductScheduler {
             // 3. 저장
             popularProductRepository.saveAll(products);
 
-            log.info("[PopularProduct] 집계 완료: {} 건 저장", products.size());
+            // 4. Redis 캐시 갱신 (Cache Warming)
+            List<PopularProductResponse> responses = products.stream()
+                .map(PopularProductResponse::from)
+                .toList();
+            productService.evictRedisCache();
+            productService.putToRedisCache(responses);
+
+            log.info("[PopularProduct] 집계 완료: {} 건 저장 + Redis 캐시 갱신", products.size());
 
         } catch (Exception e) {
             log.error("[PopularProduct] 집계 실패: baseDate={}", today, e);

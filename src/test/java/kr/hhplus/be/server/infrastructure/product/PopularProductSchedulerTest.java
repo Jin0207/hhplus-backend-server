@@ -24,6 +24,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import kr.hhplus.be.server.application.product.service.ProductService;
 import kr.hhplus.be.server.domain.product.entity.PopularProduct;
 import kr.hhplus.be.server.domain.product.enums.ProductCategory;
 import kr.hhplus.be.server.domain.product.repository.PopularProductRepository;
@@ -38,6 +39,9 @@ class PopularProductSchedulerTest {
 
     @Mock
     private PopularProductCustomRepository popularProductCustomRepository;
+
+    @Mock
+    private ProductService productService;
 
     @InjectMocks
     private PopularProductScheduler scheduler;
@@ -98,6 +102,10 @@ class PopularProductSchedulerTest {
             List<PopularProduct> savedProducts = productListCaptor.getValue();
             assertEquals(3, savedProducts.size());
             assertEquals("상품1", savedProducts.get(0).productName());
+
+            // 4. Redis 캐시 갱신 확인 (Cache Warming)
+            verify(productService, times(1)).evictRedisCache();
+            verify(productService, times(1)).putToRedisCache(any());
         }
 
         @Test
@@ -121,6 +129,9 @@ class PopularProductSchedulerTest {
                 .aggregateTopSellingProducts(startDate, endDate, 5, today);
             // 빈 결과이므로 saveAll 호출 안됨
             verify(popularProductRepository, never()).saveAll(any());
+            // Redis 캐시도 갱신하지 않음
+            verify(productService, never()).evictRedisCache();
+            verify(productService, never()).putToRedisCache(any());
         }
 
         @Test

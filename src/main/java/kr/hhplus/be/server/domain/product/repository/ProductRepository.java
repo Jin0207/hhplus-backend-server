@@ -37,4 +37,9 @@ public interface ProductRepository {
      * 인기 상품 조회
      */
     List<Product> findPopularProducts();
+
+    /**
+     * 여러 상품 ID로 조회
+     */
+    List<Product> findAllById(Iterable<Long> ids);
 }
