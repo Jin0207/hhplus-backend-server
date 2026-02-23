@@ -17,7 +17,6 @@ import kr.hhplus.be.server.application.payment.dto.response.PaymentResult;
 import kr.hhplus.be.server.application.payment.service.PaymentService;
 import kr.hhplus.be.server.application.point.service.PointService;
 import kr.hhplus.be.server.application.product.facade.StockManagerImpl;
-import kr.hhplus.be.server.application.product.service.ProductRankingService;
 import kr.hhplus.be.server.application.product.service.ProductService;
 import kr.hhplus.be.server.domain.order.entity.Order;
 import kr.hhplus.be.server.domain.order.entity.OrderDetail;
@@ -42,7 +41,6 @@ public class OrderTransactionManager {
     private final CouponService couponService;
     private final StockManagerImpl stockManager;
     private final ProductService productService;
-    private final ProductRankingService productRankingService;
     private final ApplicationEventPublisher eventPublisher;
 
     /**
@@ -154,14 +152,8 @@ public class OrderTransactionManager {
     
     private void updateProductSales(List<OrderDetail> orderDetails) {
         orderDetails.forEach(detail -> {
-            // DB 판매량 업데이트
             productService.increaseSalesQuantity(
-                detail.productId(),
-                detail.quantity()
-            );
-            // Redis 랭킹 Sorted Set 업데이트
-            productRankingService.incrementSalesScore(
-                detail.productId(),
+                detail.productId(), 
                 detail.quantity()
             );
         });
