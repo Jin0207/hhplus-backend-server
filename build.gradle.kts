@@ -68,4 +68,7 @@ dependencies {
 tasks.withType<Test> {
 	useJUnitPlatform()
 	systemProperty("user.timezone", "UTC")
+	environment("DOCKER_HOST", "tcp://127.0.0.1:2375")
+	systemProperty("DOCKER_HOST", "tcp://127.0.0.1:2375")
+	systemProperty("api.version", "1.44")
 }
