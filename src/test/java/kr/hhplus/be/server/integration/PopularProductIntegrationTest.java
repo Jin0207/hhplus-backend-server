@@ -14,6 +14,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.redis.core.RedisTemplate;
+
 import kr.hhplus.be.server.application.order.dto.request.OrderCreateRequest;
 import kr.hhplus.be.server.application.order.facade.OrderFacade;
 import kr.hhplus.be.server.application.point.service.PointService;
@@ -55,11 +57,17 @@ class PopularProductIntegrationTest extends BaseIntegrationTest {
     @Autowired
     private PointService pointService;
 
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
+
     private User testUser;
     private List<Product> testProducts;
 
     @BeforeEach
     void setUp() {
+        // Redis 캐시 초기화 (테스트 격리)
+        redisTemplate.delete(ProductService.POPULAR_PRODUCTS_CACHE_KEY);
+
         // 테스트 사용자 생성
         long timestamp = System.currentTimeMillis();
         testUser = userRepository.save(User.create("popular_test_" + timestamp + "@example.com", "password123"));
@@ -206,8 +214,9 @@ class PopularProductIntegrationTest extends BaseIntegrationTest {
         @Transactional
         @DisplayName("성공: 캐시 테이블이 비어있으면 실시간 조회로 Fallback한다")
         void 실시간_조회_Fallback() {
-            // Given: 캐시 테이블 비어있음 (배치 미실행)
-            // 오늘자 캐시 데이터 삭제하여 Fallback 조건 충족
+            // Given: 캐시 비어있음 (배치 미실행)
+            // Redis 캐시 + DB 캐시 테이블 삭제하여 Fallback 조건 충족
+            redisTemplate.delete(ProductService.POPULAR_PRODUCTS_CACHE_KEY);
             popularProductRepository.deleteByBaseDate(LocalDate.now());
 
             // 주문만 생성 (배치 실행 안함) - 높은 수량 사용
