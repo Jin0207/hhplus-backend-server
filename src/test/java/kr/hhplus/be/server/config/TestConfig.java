@@ -1,6 +1,5 @@
 package kr.hhplus.be.server.config;
 
-import kr.hhplus.be.server.domain.message.MessageProducer;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
@@ -8,6 +7,8 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+
+import kr.hhplus.be.server.domain.message.MessageProducer;
 
 @TestConfiguration
 public class TestConfig {
