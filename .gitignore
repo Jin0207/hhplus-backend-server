@@ -36,4 +36,21 @@ out/
 ### VS Code ###
 .vscode/
 
-data
+### Docker volumes ###
+data/
+
+### Logs ###
+*.log
+logs/
+
+### k6 실행 결과 ###
+k6/results/
+k6-results/
+k6/summary.html
+k6/**/*.html
+k6/**/*.json
+
+### k6 바이너리 (프로젝트 내 다운로드 시) ###
+k6/k6
+k6/k6.exe
+k6/*.exe
