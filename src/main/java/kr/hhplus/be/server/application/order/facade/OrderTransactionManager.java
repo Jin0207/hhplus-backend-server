@@ -1,6 +1,8 @@
 package kr.hhplus.be.server.application.order.facade;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -21,6 +23,8 @@ import kr.hhplus.be.server.application.product.service.ProductService;
 import kr.hhplus.be.server.domain.order.entity.Order;
 import kr.hhplus.be.server.domain.order.entity.OrderDetail;
 import kr.hhplus.be.server.domain.payment.entity.Payment;
+import kr.hhplus.be.server.infrastructure.kafka.OrderEventMessage;
+import kr.hhplus.be.server.infrastructure.kafka.OrderEventProducer;
 import kr.hhplus.be.server.support.exception.BusinessException;
 import kr.hhplus.be.server.support.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +46,7 @@ public class OrderTransactionManager {
     private final StockManagerImpl stockManager;
     private final ProductService productService;
     private final ApplicationEventPublisher eventPublisher;
+    private final OrderEventProducer orderEventProducer;
 
     /**
      * 주문 초기화 (재고 차감, 포인트 차감)
@@ -126,11 +131,21 @@ public class OrderTransactionManager {
             // 3. 판매량 증가
             updateProductSales(orderData.orderDetails());
 
-            // 4. 이벤트 발행 (트랜잭션 커밋 전 실행 - Outbox 메시지 저장)
+            // 4. Application 이벤트 발행 (BEFORE_COMMIT - Outbox 메시지 저장 트리거)
             eventPublisher.publishEvent(new OrderCompletedEvent(
                 completedOrder,
                 orderData.orderDetails()
             ));
+
+            // 5. Kafka 메시지 발행 (AFTER_COMMIT - 데이터 플랫폼으로 실시간 전달)
+            //
+            // TransactionSynchronizationManager를 통해 커밋 이후에만 발행:
+            // - 롤백 시 메시지 발행 취소 (정합성 보장)
+            // - 발행 실패가 도메인 트랜잭션에 영향 없음
+            //
+            // Topic: order.completed.v1 / Key: orderId / Payload: OrderEventMessage
+            OrderEventMessage kafkaMessage = buildOrderEventMessage(completedOrder, orderData.orderDetails());
+            orderEventProducer.publishOrderCompletedAfterCommit(kafkaMessage);
 
             log.info("주문 완료: orderId={}, paymentId={}",
                 completedOrder.id(), completedPayment.id());
@@ -153,9 +168,31 @@ public class OrderTransactionManager {
     private void updateProductSales(List<OrderDetail> orderDetails) {
         orderDetails.forEach(detail -> {
             productService.increaseSalesQuantity(
-                detail.productId(), 
+                detail.productId(),
                 detail.quantity()
             );
         });
+    }
+
+    private OrderEventMessage buildOrderEventMessage(Order order, List<OrderDetail> orderDetails) {
+        List<OrderEventMessage.OrderItemMessage> items = orderDetails.stream()
+            .map(detail -> OrderEventMessage.OrderItemMessage.builder()
+                .productId(detail.productId())
+                .quantity(detail.quantity())
+                .unitPrice(detail.unitPrice())
+                .subtotal(detail.subtotal())
+                .build())
+            .toList();
+
+        return OrderEventMessage.builder()
+            .eventId(UUID.randomUUID().toString())
+            .orderId(order.id())
+            .userId(order.userId())
+            .totalAmount(order.totalPrice())
+            .discountAmount(order.discountPrice())
+            .finalAmount(order.finalPrice())
+            .items(items)
+            .occurredAt(LocalDateTime.now().toString())
+            .build();
     }
 }

@@ -38,6 +38,11 @@ spring:
       lettuce:
         shutdown-timeout: 200ms
 
+  kafka:
+    bootstrap-servers: localhost:9092
+    listener:
+      auto-startup: false  # KafkaTemplate은 TestConfig Mock으로 대체, Consumer 연결 불필요
+
 # JWT 설정 (테스트용)
 jwt:
   secret: test-secret-key-for-integration-test-minimum-256-bits-long-secret-key-value
